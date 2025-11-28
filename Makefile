@@ -1,74 +1,146 @@
-INCLUDES=-I.
-INCLUDES+= -IarduinoLibsAndCore/cores/arduino
-INCLUDES+= -IarduinoLibsAndCore/libraries/Wire/src
-INCLUDES+= -IarduinoLibsAndCore/libraries/Wire/src/utility
-INCLUDES+= -IarduinoLibsAndCore/variants/standard
-INCLUDES+= -IFreeRTOS-Kernel/include
-INCLUDES+= -IFreeRTOS-Kernel/portable/GCC/ATMega328/
+# Project Configuration
+PROJECT := MyFreeRTOSBlinkTest
+MCU := atmega328p
+F_CPU := 16000000L
+BUILD_DIR := Build
 
+# Toolchain
+CC := avr-gcc
+CXX := avr-g++
+OBJCOPY := avr-objcopy
+AVRDUDE := avrdude
 
+# Arduino Configuration
+ARDUINO_VERSION := 10812
+ARDUINO_BOARD := ARDUINO_AVR_UNO
+ARDUINO_ARCH := ARDUINO_ARCH_AVR
 
-vpath %.cpp arduinoLibsAndCore/libraries/Wire/src
-vpath %c arduinoLibsAndCore/libraries/Wire/src/utility
-# List C source files here. (C dependencies are automatically generated.)
-vpath %c FreeRTOS-Kernel/
-vpath %c FreeRTOS-Kernel/portable/MemMang
-vpath %c FreeRTOS-Kernel/portable/GCC/ATMega328/
+# Compiler Flags
+COMMON_FLAGS := -g -Os -w -mmcu=$(MCU) -DF_CPU=$(F_CPU) \
+                -DARDUINO=$(ARDUINO_VERSION) \
+                -D$(ARDUINO_BOARD) \
+                -D$(ARDUINO_ARCH) \
+                -ffunction-sections -fdata-sections \
+                -MMD -MP -flto
 
-# %SRC	= \
-# %main.c \
-# %$(SOURCE_DIR)/tasks.c \
-# %$(SOURCE_DIR)/queue.c \
-# %$(SOURCE_DIR)/list.c \
-# %$(SOURCE_DIR)/croutine.c \
-# %$(SOURCE_DIR)/portable/MemMang/heap_1.c \
-# %$(PORT_DIR)/port.c
+CFLAGS := $(COMMON_FLAGS) -std=gnu11 -fno-fat-lto-objects
 
-BUILD_DIR=Build
+CXXFLAGS := $(COMMON_FLAGS) -std=gnu++11 \
+            -fpermissive -fno-exceptions \
+            -fno-threadsafe-statics \
+            -Wno-error=narrowing
 
-CC=avr-gcc
-CPP=avr-g++
+# Include Paths
+INCLUDES := -I. \
+            -IarduinoLibsAndCore/cores/arduino \
+            -IarduinoLibsAndCore/libraries/Wire/src \
+            -IarduinoLibsAndCore/libraries/Wire/src/utility \
+            -IarduinoLibsAndCore/variants/standard \
+            -IFreeRTOS-Kernel/include \
+            -IFreeRTOS-Kernel/portable/GCC/ATMega328
 
-MMCU=-mmcu=atmega328p
+# Source Directories
+FREERTOS_DIR := FreeRTOS-Kernel
+FREERTOS_PORT_DIR := $(FREERTOS_DIR)/portable/GCC/ATMega328
+FREERTOS_MEM_DIR := $(FREERTOS_DIR)/portable/MemMang
+WIRE_DIR := arduinoLibsAndCore/libraries/Wire/src
+WIRE_UTIL_DIR := $(WIRE_DIR)/utility
 
-CFLAGS= -g -Os -w -std=gnu11 -ffunction-sections -fdata-sections -MMD -flto -fno-fat-lto-objects ${MMCU} -DF_CPU=16000000L -DARDUINO=10812 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR
-CPPFLAGS= -g -Os -w -std=gnu++11 -fpermissive -fno-exceptions -ffunction-sections -fdata-sections -fno-threadsafe-statics -Wno-error=narrowing -MMD -flto -w -x c++ -CC ${MMCU} -DF_CPU=16000000L -DARDUINO=10812 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR
+# Source Files
+C_SOURCES := \
+    $(FREERTOS_DIR)/timers.c \
+    $(FREERTOS_DIR)/tasks.c \
+    $(FREERTOS_DIR)/queue.c \
+    $(FREERTOS_DIR)/list.c \
+    $(FREERTOS_DIR)/croutine.c \
+    $(FREERTOS_MEM_DIR)/heap_1.c \
+    $(FREERTOS_PORT_DIR)/port.c \
+    $(WIRE_UTIL_DIR)/twi.c
 
-PROGRAM=MyFreeRTOSBlinkTest
+CXX_SOURCES := \
+    main.cpp \
+    $(WIRE_DIR)/Wire.cpp \
+    drivers/lcd/rgb_lcd.cpp
 
+# Generate object file names
+C_OBJECTS := $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o))
+CXX_OBJECTS := $(addprefix $(BUILD_DIR)/, $(CXX_SOURCES:.cpp=.o))
+ALL_OBJECTS := $(C_OBJECTS) $(CXX_OBJECTS)
 
-all: ${PROGRAM}.elf ${PROGRAM}.hex 
-	rm -f *.d
+# Dependency files
+DEPS := $(ALL_OBJECTS:.o=.d)
 
+# Linker Flags
+LDFLAGS := -w -Os -g -flto -fuse-linker-plugin \
+           -Wl,--gc-sections -mmcu=$(MCU) \
+           -static -L./arduinoLibsAndCore -lres
 
-${PROGRAM}.elf: Build/timers.o Build/tasks.o Build/queue.o Build/list.o Build/croutine.o Build/heap_1.o Build/port.o Build/Wire.o Build/main.o Build/twi.o 
-	${CPP} -w -Os -g -flto -fuse-linker-plugin -Wl,--gc-sections ${INCLUDES} ${MMCU} $^ -o ${BUILD_DIR}/$@ -static -L./arduinoLibsAndCore -lres
+# Upload Configuration
+PORT := /dev/ttyACM0
+BAUD_RATE := 115200
+PROGRAMMER := arduino
 
+# Default Target
+.PHONY: all
+all: $(BUILD_DIR)/$(PROJECT).hex
 
-Build/%.o: %.c
-	mkdir -p ${BUILD_DIR}/
-	${CC} -c ${CFLAGS} ${INCLUDES} $^
-	mv *.o ${BUILD_DIR}/
+# Link
+$(BUILD_DIR)/$(PROJECT).elf: $(ALL_OBJECTS)
+	@echo "Linking $@"
+	@$(CXX) $(ALL_OBJECTS) $(LDFLAGS) -o $@
+	@echo "Build complete: $@"
 
-Build/%.o: %.cpp
-	mkdir -p ${BUILD_DIR}/
-	${CPP} -c ${CPPFLAGS} ${INCLUDES} $^
-	mv *.o ${BUILD_DIR}/
+# Compile C sources
+$(BUILD_DIR)/%.o: %.c
+	@echo "Compiling $<"
+	@mkdir -p $(dir $@)
+	@$(CC) -c $(CFLAGS) $(INCLUDES) $< -o $@
 
-OBJCOPY=avr-objcopy
- 
-${PROGRAM}.hex: ${BUILD_DIR}/${PROGRAM}.elf
-	${OBJCOPY} -O ihex -R .eeprom  ${BUILD_DIR}/${PROGRAM}.elf ${BUILD_DIR}/$@
+# Compile C++ sources
+$(BUILD_DIR)/%.o: %.cpp
+	@echo "Compiling $<"
+	@mkdir -p $(dir $@)
+	@$(CXX) -c $(CXXFLAGS) $(INCLUDES) $< -o $@
 
-PORT=/dev/ttyACM0
- 
-upload: ${BUILD_DIR}/${PROGRAM}.hex
-	avrdude -F -V -c arduino -p ATMEGA328P -P ${PORT} -b 115200 -U flash:w:${BUILD_DIR}/${PROGRAM}.hex;
+# Generate HEX file
+$(BUILD_DIR)/$(PROJECT).hex: $(BUILD_DIR)/$(PROJECT).elf
+	@echo "Creating HEX file: $@"
+	@$(OBJCOPY) -O ihex -R .eeprom $< $@
 
+# Upload to Arduino
+.PHONY: upload
+upload: $(BUILD_DIR)/$(PROJECT).hex
+	@echo "Uploading to $(PORT)..."
+	$(AVRDUDE) -F -V -c $(PROGRAMMER) -p ATMEGA328P \
+	           -P $(PORT) -b $(BAUD_RATE) \
+	           -U flash:w:$<
+
+# Clean build artifacts
+.PHONY: clean
 clean:
-	rm -Rf ${BUILD_DIR}
+	@echo "Cleaning build directory..."
+	@rm -rf $(BUILD_DIR)
 
-monitorSerial:
-	screen -S arduinoMonitor ${PORT} 9600
-killMonitor:
-	screen -XS arduino quit
+# Serial Monitor
+.PHONY: monitor
+monitor:
+	screen -S arduinoMonitor $(PORT) 9600
+
+.PHONY: kill-monitor
+kill-monitor:
+	screen -XS arduinoMonitor quit
+
+# Size report
+.PHONY: size
+size: $(BUILD_DIR)/$(PROJECT).elf
+	@avr-size --format=avr --mcu=$(MCU) $<
+
+# Print variables (for debugging)
+.PHONY: print-%
+print-%:
+	@echo '$*=$($*)'
+
+# Include dependency files
+-include $(DEPS)
+
+.DEFAULT_GOAL := all

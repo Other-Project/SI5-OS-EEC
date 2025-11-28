@@ -3,7 +3,7 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**",
+                "${workspaceFolder}",
                 "FreeRTOS-Kernel/portable/GCC/ATMega328/"
             ],
             "defines": [],
