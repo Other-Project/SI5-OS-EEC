@@ -60,7 +60,7 @@ C_SOURCES := \
 CXX_SOURCES := \
     main.cpp \
     $(WIRE_DIR)/Wire.cpp \
-    drivers/lcd/rgb_lcd.cpp
+    drivers/lcd/lcd.cpp
 
 # Generate object file names
 C_OBJECTS := $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o))
