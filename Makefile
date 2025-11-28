@@ -1,5 +1,5 @@
 # Project Configuration
-PROJECT := MyFreeRTOSBlinkTest
+PROJECT := EEE_Security_Alarm
 MCU := atmega328p
 F_CPU := 16000000L
 BUILD_DIR := Build
