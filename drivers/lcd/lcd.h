@@ -63,28 +63,76 @@ typedef struct {
     uint8_t curr_line;
 } lcd_t;
 
+
 // Function prototypes
+
+/* Initialize lcd structure and TWI (I2C) peripheral. */
 void lcd_init(lcd_t *lcd);
+
+/*
+ * Begin using the LCD: set columns, rows and character size.
+ * Performs HD44780 initialization sequence and prepares the display.
+ */
 void lcd_begin(lcd_t *lcd, uint8_t cols, uint8_t rows, uint8_t charsize);
+
+/* Clear the display and set cursor to home (0,0). */
 void lcd_clear(lcd_t *lcd);
+
+/* Return cursor to home position without clearing display. */
 void lcd_home(lcd_t *lcd);
+
+/* Set cursor to given column and row (0-based). */
 void lcd_set_cursor(lcd_t *lcd, uint8_t col, uint8_t row);
+
+/* Turn the LCD display on (but keeps cursor/blink settings). */
 void lcd_display(lcd_t *lcd);
+
+/* Turn the LCD display off (screen goes blank). */
 void lcd_no_display(lcd_t *lcd);
+
+/* Enable the text cursor (visible). */
 void lcd_cursor(lcd_t *lcd);
+
+/* Disable the text cursor (invisible). */
 void lcd_no_cursor(lcd_t *lcd);
+
+/* Enable blinking block cursor. */
 void lcd_blink(lcd_t *lcd);
+
+/* Disable blinking block cursor. */
 void lcd_no_blink(lcd_t *lcd);
+
+/* Scroll the whole display left by one position. */
 void lcd_scroll_display_left(lcd_t *lcd);
+
+/* Scroll the whole display right by one position. */
 void lcd_scroll_display_right(lcd_t *lcd);
+
+/* Set text direction left-to-right. */
 void lcd_left_to_right(lcd_t *lcd);
+
+/* Set text direction right-to-left. */
 void lcd_right_to_left(lcd_t *lcd);
+
+/* Enable automatic display shifting (autoscroll). */
 void lcd_autoscroll(lcd_t *lcd);
+
+/* Disable automatic display shifting (autoscroll). */
 void lcd_no_autoscroll(lcd_t *lcd);
+
+/* Create a custom character from RAM-provided byte map (8 bytes). */
 void lcd_create_char(lcd_t *lcd, uint8_t location, uint8_t charmap[]);
+
+/* Create a custom character from PROGMEM-provided byte map (8 bytes). */
 void lcd_create_char_P(lcd_t *lcd, uint8_t location, const uint8_t *charmap);
+
+/* Write a single byte/character to the current cursor position. */
 void lcd_write(lcd_t *lcd, uint8_t value);
+
+/* Write a NUL-terminated C string from RAM to the display. */
 void lcd_print(lcd_t *lcd, const char *str);
+
+/* Write a NUL-terminated string stored in PROGMEM to the display. */
 void lcd_print_P(lcd_t *lcd, const char *str);
 
 #endif
