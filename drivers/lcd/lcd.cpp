@@ -8,24 +8,8 @@
 #include "lcd.h"
 #include <string.h>
 
-#define F_CPU 16000000UL
-
-// TWI Status codes
-#define TW_START        0x08
-#define TW_REP_START    0x10
-#define TW_MT_SLA_ACK   0x18
-#define TW_MT_SLA_NACK  0x20
-#define TW_MT_DATA_ACK  0x28
-#define TW_MT_DATA_NACK 0x30
+// TWI Status
 #define TW_STATUS_MASK  0xF8
-
-// Color lookup table
-static const uint8_t color_define[4][3] PROGMEM = {
-    {255, 255, 255},  // white
-    {255, 0, 0},      // red
-    {0, 255, 0},      // green
-    {0, 0, 255}       // blue
-};
 
 // Internal helper functions
 static void lcd_command(lcd_t *lcd, uint8_t value);

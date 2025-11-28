@@ -73,12 +73,11 @@ int main(void)
     
     // Initialize the LCD
     lcd_init(&lcd);
-    lcd_begin(&lcd, 16, 2, LCD_5x8DOTS);
+    lcd_begin(&lcd, 16, 2, LCD_2LINE);
     
-    // Display "Hello World!"
     lcd_set_cursor(&lcd, 0, 0);
     lcd_print(&lcd, "Hello World!");
-    
+
     // Start scheduler.
     vTaskStartScheduler();
 

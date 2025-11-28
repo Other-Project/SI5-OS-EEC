@@ -15,16 +15,6 @@
 // Device I2C Address
 #define LCD_ADDRESS     (0x7c>>1)
 
-// Color definitions
-#define WHITE           0
-#define RED             1
-#define GREEN           2
-#define BLUE            3
-
-#define REG_MODE1       0x00
-#define REG_MODE2       0x01
-#define REG_OUTPUT      0x08
-
 // LCD Commands
 #define LCD_CLEARDISPLAY 0x01
 #define LCD_RETURNHOME 0x02
