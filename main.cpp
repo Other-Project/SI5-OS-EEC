@@ -16,6 +16,7 @@
 #include "task.h" /* RTOS task related API prototypes. */
 #include "semphr.h" /* Semaphore related API prototypes. */
 #include <avr/io.h>
+#include "drivers/lcd/rgb_lcd.h"
 
 /******************************************************************************
  * Private macro definitions.
@@ -67,6 +68,16 @@ int main(void)
         1U,
         &greenBlink_handle
     );
+
+    rgb_lcd_t lcd;
+    
+    // Initialize the LCD
+    rgb_lcd_init(&lcd);
+    rgb_lcd_begin(&lcd, 16, 2, LCD_5x8DOTS);
+    
+    // Display "Hello World!"
+    rgb_lcd_set_cursor(&lcd, 0, 0);
+    rgb_lcd_print(&lcd, "Hello World!");
 
     // Start scheduler.
     vTaskStartScheduler();
@@ -121,5 +132,3 @@ int main(void)
         PORTD ^= redLed; //PD2 on the micro controller is linked to D2 on the shield
     }
 }
-
-
