@@ -35,6 +35,7 @@ INCLUDES := -I. \
             -IarduinoLibsAndCore/cores/arduino \
             -IarduinoLibsAndCore/libraries/Wire/src \
             -IarduinoLibsAndCore/libraries/Wire/src/utility \
+            -IarduinoLibsAndCore/libraries/SoftwareSerial/src \
             -IarduinoLibsAndCore/variants/standard \
             -IFreeRTOS-Kernel/include \
             -IFreeRTOS-Kernel/portable/GCC/ATMega328
@@ -43,8 +44,7 @@ INCLUDES := -I. \
 FREERTOS_DIR := FreeRTOS-Kernel
 FREERTOS_PORT_DIR := $(FREERTOS_DIR)/portable/GCC/ATMega328
 FREERTOS_MEM_DIR := $(FREERTOS_DIR)/portable/MemMang
-WIRE_DIR := arduinoLibsAndCore/libraries/Wire/src
-WIRE_UTIL_DIR := $(WIRE_DIR)/utility
+ARDUINO_LIBS_DIR := arduinoLibsAndCore/libraries
 
 # Source Files
 C_SOURCES := \
@@ -55,12 +55,14 @@ C_SOURCES := \
     $(FREERTOS_DIR)/croutine.c \
     $(FREERTOS_MEM_DIR)/heap_1.c \
     $(FREERTOS_PORT_DIR)/port.c \
-    $(WIRE_UTIL_DIR)/twi.c
+    $(ARDUINO_LIBS_DIR)/Wire/src/utility/twi.c
 
 CXX_SOURCES := \
     main.cpp \
-    $(WIRE_DIR)/Wire.cpp \
-    drivers/lcd/lcd.cpp
+    $(ARDUINO_LIBS_DIR)/Wire/src/Wire.cpp \
+    $(ARDUINO_LIBS_DIR)/SoftwareSerial/src/SoftwareSerial.cpp \
+    drivers/lcd/lcd.cpp \
+    drivers/rfid/rfid.cpp
 
 # Generate object file names
 C_OBJECTS := $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o))

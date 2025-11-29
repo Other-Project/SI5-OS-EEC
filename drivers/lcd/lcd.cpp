@@ -233,13 +233,13 @@ void lcd_write(lcd_t *lcd, uint8_t value) {
     i2c_send_bytes(LCD_ADDRESS, dta, 2);
 }
 
-void lcd_print(lcd_t *lcd, const char *str) {
+void lcd_print(lcd_t *lcd, const unsigned char *str) {
     while (*str) {
         lcd_write(lcd, *str++);
     }
 }
 
-void lcd_print_P(lcd_t *lcd, const char *str) {
+void lcd_print_P(lcd_t *lcd, const unsigned char *str) {
     char c;
     while ((c = pgm_read_byte(str++))) {
         lcd_write(lcd, c);

@@ -3,7 +3,8 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}",
+                "${workspaceFolder}/arduinoLibsAndCore/**",
+                "${workspaceFolder}/FreeRTOS-Kernel/**",
                 "FreeRTOS-Kernel/portable/GCC/ATMega328/"
             ],
             "defines": [],

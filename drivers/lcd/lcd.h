@@ -130,9 +130,9 @@ void lcd_create_char_P(lcd_t *lcd, uint8_t location, const uint8_t *charmap);
 void lcd_write(lcd_t *lcd, uint8_t value);
 
 /* Write a NUL-terminated C string from RAM to the display. */
-void lcd_print(lcd_t *lcd, const char *str);
+void lcd_print(lcd_t *lcd, const unsigned char *str);
 
 /* Write a NUL-terminated string stored in PROGMEM to the display. */
-void lcd_print_P(lcd_t *lcd, const char *str);
+void lcd_print_P(lcd_t *lcd, const unsigned char *str);
 
 #endif
