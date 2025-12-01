@@ -63,7 +63,8 @@ CXX_SOURCES := \
     $(ARDUINO_LIBS_DIR)/SoftwareSerial/src/SoftwareSerial.cpp \
     drivers/lcd/lcd.cpp \
     drivers/rfid/rfid.cpp \
-    drivers/ultrasonic/ultrasonic.cpp
+    drivers/ultrasonic/ultrasonic.cpp  \
+    drivers/buzzer/buzzer.cpp
 
 # Generate object file names
 C_OBJECTS := $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o))

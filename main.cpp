@@ -17,6 +17,7 @@
 #include <avr/io.h>
 #include "drivers/lcd/lcd.h"
 #include "drivers/rfid/rfid.h"
+#include "drivers/buzzer/buzzer.h"
 #include "drivers/ultrasonic/ultrasonic.h"
 
 /******************************************************************************
@@ -29,6 +30,7 @@
 
 // tasks handler defined after the main
 static void vReadRfid(void *pvParameters);
+static void vBuzzerTask(void *pvParameters);
 static void vUltrasonicTask(void *pvParameters);
 
 // constant to ease the reading....
@@ -38,6 +40,7 @@ const uint8_t greenLed = _BV(PD3);*/
 static RFID_Reader rfid(2, 3);
 static uint8_t buffer[16];
 static LCD lcd = LCD();
+static Buzzer grooveBuzzer(&DDRD, &PORTD, _BV(PD6));
 
 int main(void)
 {
@@ -50,6 +53,14 @@ int main(void)
     xTaskCreate(
         vReadRfid,
         "rfid",
+        configMINIMAL_STACK_SIZE,
+        NULL,
+        1U,
+        NULL);
+    
+    xTaskCreate(
+        vBuzzerTask,
+        "buzzer",
         configMINIMAL_STACK_SIZE,
         NULL,
         1U,
@@ -103,5 +114,22 @@ static void vUltrasonicTask(void *pvParameters)
         lcd.print(buffer);
         // Here you can add code to display the distance on the LCD or process it further
         vTaskDelayUntil(&xLastWakeUpTime, 1000 / portTICK_PERIOD_MS); // Polling delay
+    }
+}
+
+static void vBuzzerTask(void *pvParameters)
+{
+    // Initialisation matérielle (direction des I/O)
+    grooveBuzzer.init();
+
+    while (1)
+    {
+        // Bip
+        grooveBuzzer.on();
+        vTaskDelay(100 / portTICK_PERIOD_MS); // Son pendant 100ms
+        
+        // Silence
+        grooveBuzzer.off();
+        vTaskDelay(1000 / portTICK_PERIOD_MS); // Silence pendant 9sec
     }
 }
