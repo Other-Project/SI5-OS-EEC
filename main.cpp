@@ -17,6 +17,7 @@
 #include <avr/io.h>
 #include "drivers/lcd/lcd.h"
 #include "drivers/rfid/rfid.h"
+#include "drivers/ultrasonic/ultrasonic.h"
 
 /******************************************************************************
  * Private macro definitions.
@@ -28,6 +29,7 @@
 
 // tasks handler defined after the main
 static void vReadRfid(void *pvParameters);
+static void vUltrasonicTask(void *pvParameters);
 
 // constant to ease the reading....
 /*const uint8_t redLed   = _BV(PD2);
@@ -59,6 +61,14 @@ int main(void)
         1U,
         NULL);
 
+    xTaskCreate(
+        vUltrasonicTask,
+        "ultrasonic",
+        configMINIMAL_STACK_SIZE,
+        NULL,
+        1U,
+        NULL);
+
     // Start scheduler.
     vTaskStartScheduler();
 
@@ -82,5 +92,22 @@ static void vReadRfid(void *pvParameters)
             lcd_print(&lcd, "No RFID Data");
         }
         vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS); // Polling delay
+    }
+}
+
+static void vUltrasonicTask(void *pvParameters)
+{
+    // Connected to D4 on the Base Shield
+    Ultrasonic ultrasonic(&PORTD, &DDRD, &PIND, PD4);
+    TickType_t xLastWakeUpTime = xTaskGetTickCount();
+    while (1)
+    {
+        long distance_cm = ultrasonic.MeasureInMillimeters();
+        snprintf((char *)buffer, sizeof(buffer), "Dist: %ld mm", distance_cm % 100);
+        lcd_clear(&lcd);
+        lcd_set_cursor(&lcd, 0, 0);
+        lcd_print(&lcd, buffer);
+        // Here you can add code to display the distance on the LCD or process it further
+        vTaskDelayUntil(&xLastWakeUpTime, 1000 / portTICK_PERIOD_MS); // Polling delay
     }
 }
