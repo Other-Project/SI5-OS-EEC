@@ -62,7 +62,7 @@ int main(void)
         NULL,
         1U,
         NULL);
-    
+
     xTaskCreate(
         vBuzzerTask,
         "buzzer",
@@ -71,13 +71,13 @@ int main(void)
         1U,
         NULL);
 
-    xTaskCreate(
+    /*xTaskCreate(
         vUltrasonicTask,
         "ultrasonic",
         configMINIMAL_STACK_SIZE,
         NULL,
         1U,
-        NULL);
+        NULL);*/
 
     // Start scheduler.
     vTaskStartScheduler();
@@ -88,20 +88,26 @@ int main(void)
 static void vReadRfid(void *pvParameters)
 {
     TickType_t xLastWakeUpTime = xTaskGetTickCount();
+    size_t length;
     while (1)
     {
         if (rfid.dataAvailable())
         {
-            size_t length = rfid.readData(buffer, sizeof(buffer)-1);
-            lcd.set_cursor(0, 1);
-            buffer[length] = '\0';
-            lcd.print(buffer);
+            buffer[0] = '\0';
+            length = rfid.readData(buffer, sizeof(buffer) - 1);
+            if (length == 14)
+            {
+                buffer[length - 1] = '\0'; // Ignore ending character
+                lcd.clear();
+                lcd.print(buffer + 1); // Skip starting character
+                vTaskDelayUntil(&xLastWakeUpTime, 2000 / portTICK_PERIOD_MS);
+                continue;
+            }
         }
-        else {
-            lcd.set_cursor(0, 1);
-            lcd.print("No RFID Data");
-        }
-        vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS); // Polling delay
+
+        lcd.clear();
+        lcd.print("No RFID Data");
+        vTaskDelayUntil(&xLastWakeUpTime, 50 / portTICK_PERIOD_MS); // Polling delay
     }
 }
 
@@ -115,7 +121,6 @@ static void vUltrasonicTask(void *pvParameters)
         long distance_cm = ultrasonic.MeasureInMillimeters();
         snprintf((char *)buffer, sizeof(buffer), "Dist: %ld mm", distance_cm % 100);
         lcd.clear();
-        lcd.set_cursor(0, 0);
         lcd.print(buffer);
         // Here you can add code to display the distance on the LCD or process it further
         vTaskDelayUntil(&xLastWakeUpTime, 1000 / portTICK_PERIOD_MS); // Polling delay
