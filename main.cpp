@@ -17,6 +17,9 @@
 #include <avr/io.h>
 #include "drivers/lcd/lcd.h"
 #include "drivers/rfid/rfid.h"
+#include "drivers/buzzer/buzzer.h"
+#include "drivers/ultrasonic/ultrasonic.h"
+#include "drivers/button/button.h"
 
 /******************************************************************************
  * Private macro definitions.
@@ -28,26 +31,27 @@
 
 // tasks handler defined after the main
 static void vReadRfid(void *pvParameters);
+static void vBuzzerTask(void *pvParameters);
+static void vUltrasonicTask(void *pvParameters);
 
 // constant to ease the reading....
 /*const uint8_t redLed   = _BV(PD2);
 const uint8_t greenLed = _BV(PD3);*/
 
-static RFID_Reader rfid(2, 3);
+static RFID_Reader rfid(7, 8);
 static uint8_t buffer[16];
-static lcd_t lcd;
+static LCD lcd = LCD();
+static Buzzer grooveBuzzer(&DDRD, &PORTD, _BV(PD6));
+static Button myButton(2); // uniquement pin 2 ou 3
 
 int main(void)
 {
-
-
     // Initialize the LCD
-    lcd_init(&lcd);
-    lcd_begin(&lcd, 16, 2, LCD_2LINE);
+    lcd.begin(16, 2, LCD_2LINE);
+    lcd.clear();
 
-    lcd_set_cursor(&lcd, 0, 0);
-    lcd_print(&lcd, "Hello World!");
-
+    // Initialize the button
+    myButton.init();
 
     rfid.begin(9600);
 
@@ -59,6 +63,22 @@ int main(void)
         1U,
         NULL);
 
+    xTaskCreate(
+        vBuzzerTask,
+        "buzzer",
+        configMINIMAL_STACK_SIZE,
+        NULL,
+        1U,
+        NULL);
+
+    /*xTaskCreate(
+        vUltrasonicTask,
+        "ultrasonic",
+        configMINIMAL_STACK_SIZE,
+        NULL,
+        1U,
+        NULL);*/
+
     // Start scheduler.
     vTaskStartScheduler();
 
@@ -68,19 +88,58 @@ int main(void)
 static void vReadRfid(void *pvParameters)
 {
     TickType_t xLastWakeUpTime = xTaskGetTickCount();
+    size_t length;
     while (1)
     {
         if (rfid.dataAvailable())
         {
-            size_t length = rfid.readData(buffer, sizeof(buffer)-1);
-            lcd_set_cursor(&lcd, 0, 1);
-            buffer[length] = '\0';
-            lcd_print(&lcd, buffer);
+            buffer[0] = '\0';
+            length = rfid.readData(buffer, sizeof(buffer) - 1);
+            if (length == 14)
+            {
+                buffer[length - 1] = '\0'; // Ignore ending character
+                lcd.clear();
+                lcd.print(buffer + 1); // Skip starting character
+                vTaskDelayUntil(&xLastWakeUpTime, 2000 / portTICK_PERIOD_MS);
+                continue;
+            }
         }
-        else {
-            lcd_set_cursor(&lcd, 0, 1);
-            lcd_print(&lcd, "No RFID Data");
-        }
-        vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS); // Polling delay
+
+        lcd.clear();
+        lcd.print("No RFID Data");
+        vTaskDelayUntil(&xLastWakeUpTime, 50 / portTICK_PERIOD_MS); // Polling delay
+    }
+}
+
+static void vUltrasonicTask(void *pvParameters)
+{
+    // Connected to D4 on the Base Shield
+    Ultrasonic ultrasonic(&PORTD, &DDRD, &PIND, PD4);
+    TickType_t xLastWakeUpTime = xTaskGetTickCount();
+    while (1)
+    {
+        long distance_cm = ultrasonic.MeasureInMillimeters();
+        snprintf((char *)buffer, sizeof(buffer), "Dist: %ld mm", distance_cm % 100);
+        lcd.clear();
+        lcd.print(buffer);
+        // Here you can add code to display the distance on the LCD or process it further
+        vTaskDelayUntil(&xLastWakeUpTime, 1000 / portTICK_PERIOD_MS); // Polling delay
+    }
+}
+
+static void vBuzzerTask(void *pvParameters)
+{
+    // Initialisation matérielle (direction des I/O)
+    grooveBuzzer.init();
+
+    while (1)
+    {
+        //wait for button press
+        myButton.waitForPress();
+
+        // Bip
+        grooveBuzzer.on();
+        vTaskDelay(5000 / portTICK_PERIOD_MS); // Son pendant 100ms
+        grooveBuzzer.off();
     }
 }
