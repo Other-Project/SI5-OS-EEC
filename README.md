@@ -2,6 +2,8 @@
 
 Eliot MENORET + Evan GALLI + Élian DELMAS
 
+Code : https://github.com/Other-Project/SI5-OS-EEC.git
+
 Ce projet consiste en un système d'alarme intelligent pour une maison. En cas de détection d'une présence dans la maison alors que l'alarme est activée, une signal sonore s'activera dans la maison pour effrayer l’intrus. Il sera possible pour l'habitant d'activer son alarme lorsqu'il sort de chez lui, puis de la désactiver en revenant avec un badge RFID personnel.
 En plus de cela, l'habitant aura la possibilité d'ajouter de nouveaux badges RFID qu'il pourra donner à ses proches pour que ces derniers puissent eux-même désactiver l'alarme. De manière similaire, il pourra également révoquer des badges RFID pour qu'ils ne puissent plus être utilisés pour désactiver l'alarme. Ces opérations seront réalisées directement au niveau de la Raspberry Pi (Edge).
 Ce système comprend :
