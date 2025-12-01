@@ -37,19 +37,13 @@ const uint8_t greenLed = _BV(PD3);*/
 
 static RFID_Reader rfid(2, 3);
 static uint8_t buffer[16];
-static lcd_t lcd;
+static LCD lcd = LCD();
 
 int main(void)
 {
-
-
     // Initialize the LCD
-    lcd_init(&lcd);
-    lcd_begin(&lcd, 16, 2, LCD_2LINE);
-
-    lcd_set_cursor(&lcd, 0, 0);
-    lcd_print(&lcd, "Hello World!");
-
+    lcd.begin(16, 2, LCD_2LINE);
+    lcd.clear();
 
     rfid.begin(9600);
 
@@ -83,13 +77,13 @@ static void vReadRfid(void *pvParameters)
         if (rfid.dataAvailable())
         {
             size_t length = rfid.readData(buffer, sizeof(buffer)-1);
-            lcd_set_cursor(&lcd, 0, 1);
+            lcd.set_cursor(0, 1);
             buffer[length] = '\0';
-            lcd_print(&lcd, buffer);
+            lcd.print(buffer);
         }
         else {
-            lcd_set_cursor(&lcd, 0, 1);
-            lcd_print(&lcd, "No RFID Data");
+            lcd.set_cursor(0, 1);
+            lcd.print("No RFID Data");
         }
         vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS); // Polling delay
     }
@@ -104,9 +98,9 @@ static void vUltrasonicTask(void *pvParameters)
     {
         long distance_cm = ultrasonic.MeasureInMillimeters();
         snprintf((char *)buffer, sizeof(buffer), "Dist: %ld mm", distance_cm % 100);
-        lcd_clear(&lcd);
-        lcd_set_cursor(&lcd, 0, 0);
-        lcd_print(&lcd, buffer);
+        lcd.clear();
+        lcd.set_cursor(0, 0);
+        lcd.print(buffer);
         // Here you can add code to display the distance on the LCD or process it further
         vTaskDelayUntil(&xLastWakeUpTime, 1000 / portTICK_PERIOD_MS); // Polling delay
     }

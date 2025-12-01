@@ -1,19 +1,19 @@
 /*
     lcd.h - Native AVR version
     Adapted from Seeed Technology Inc. Arduino library
-    
+
     The MIT License (MIT)
 */
 
-#ifndef __lcd_AVR_H__
-#define __lcd_AVR_H__
+#ifndef __lcd_H__
+#define __lcd_H__
 
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/pgmspace.h>
 
 // Device I2C Address
-#define LCD_ADDRESS     (0x7c>>1)
+#define LCD_ADDRESS (0x7c >> 1)
 
 // LCD Commands
 #define LCD_CLEARDISPLAY 0x01
@@ -53,86 +53,105 @@
 #define LCD_5x10DOTS 0x04
 #define LCD_5x8DOTS 0x00
 
-// LCD structure
-typedef struct {
+// LCD class
+class LCD
+{
+
+private:
     uint8_t display_function;
     uint8_t display_control;
     uint8_t display_mode;
     uint8_t initialized;
     uint8_t num_lines;
     uint8_t curr_line;
-} lcd_t;
 
+    void twi_init(void);
+    void twi_start(void);
+    void twi_stop(void);
+    void twi_write(uint8_t data);
+    uint8_t twi_get_status(void);
+    void i2c_send_byte(uint8_t addr, uint8_t dta);
+    void LCD::i2c_send_bytes(uint8_t addr, uint8_t *dta, uint8_t len);
 
-// Function prototypes
+    void command(uint8_t value);
 
-/* Initialize lcd structure and TWI (I2C) peripheral. */
-void lcd_init(lcd_t *lcd);
+public:
+    /* Initialize lcd structure and TWI (I2C) peripheral. */
+    LCD() : display_function(0),
+            display_control(0),
+            display_mode(0),
+            initialized(0),
+            num_lines(0),
+            curr_line(0)
+    {
+        twi_init();
+    }
 
-/*
- * Begin using the LCD: set columns, rows and character size.
- * Performs HD44780 initialization sequence and prepares the display.
- */
-void lcd_begin(lcd_t *lcd, uint8_t cols, uint8_t rows, uint8_t charsize);
+    /*
+     * Begin using the LCD: set columns, rows and character size.
+     * Performs HD44780 initialization sequence and prepares the display.
+     */
+    void begin(uint8_t cols, uint8_t rows, uint8_t charsize);
 
-/* Clear the display and set cursor to home (0,0). */
-void lcd_clear(lcd_t *lcd);
+    /* Clear the display and set cursor to home (0,0). */
+    void clear();
 
-/* Return cursor to home position without clearing display. */
-void lcd_home(lcd_t *lcd);
+    /* Return cursor to home position without clearing display. */
+    void home();
 
-/* Set cursor to given column and row (0-based). */
-void lcd_set_cursor(lcd_t *lcd, uint8_t col, uint8_t row);
+    /* Set cursor to given column and row (0-based). */
+    void set_cursor(uint8_t col, uint8_t row);
 
-/* Turn the LCD display on (but keeps cursor/blink settings). */
-void lcd_display(lcd_t *lcd);
+    /* Turn the LCD display on (but keeps cursor/blink settings). */
+    void display();
 
-/* Turn the LCD display off (screen goes blank). */
-void lcd_no_display(lcd_t *lcd);
+    /* Turn the LCD display off (screen goes blank). */
+    void no_display();
 
-/* Enable the text cursor (visible). */
-void lcd_cursor(lcd_t *lcd);
+    /* Enable the text cursor (visible). */
+    void cursor();
 
-/* Disable the text cursor (invisible). */
-void lcd_no_cursor(lcd_t *lcd);
+    /* Disable the text cursor (invisible). */
+    void no_cursor();
 
-/* Enable blinking block cursor. */
-void lcd_blink(lcd_t *lcd);
+    /* Enable blinking block cursor. */
+    void blink();
 
-/* Disable blinking block cursor. */
-void lcd_no_blink(lcd_t *lcd);
+    /* Disable blinking block cursor. */
+    void no_blink();
 
-/* Scroll the whole display left by one position. */
-void lcd_scroll_display_left(lcd_t *lcd);
+    /* Scroll the whole display left by one position. */
+    void scroll_display_left();
 
-/* Scroll the whole display right by one position. */
-void lcd_scroll_display_right(lcd_t *lcd);
+    /* Scroll the whole display right by one position. */
+    void scroll_display_right();
 
-/* Set text direction left-to-right. */
-void lcd_left_to_right(lcd_t *lcd);
+    /* Set text direction left-to-right. */
+    void left_to_right();
 
-/* Set text direction right-to-left. */
-void lcd_right_to_left(lcd_t *lcd);
+    /* Set text direction right-to-left. */
+    void right_to_left();
 
-/* Enable automatic display shifting (autoscroll). */
-void lcd_autoscroll(lcd_t *lcd);
+    /* Enable automatic display shifting (autoscroll). */
+    void autoscroll();
 
-/* Disable automatic display shifting (autoscroll). */
-void lcd_no_autoscroll(lcd_t *lcd);
+    /* Disable automatic display shifting (autoscroll). */
+    void no_autoscroll();
 
-/* Create a custom character from RAM-provided byte map (8 bytes). */
-void lcd_create_char(lcd_t *lcd, uint8_t location, uint8_t charmap[]);
+    /* Create a custom character from RAM-provided byte map (8 bytes). */
+    void create_char(uint8_t location, uint8_t charmap[]);
 
-/* Create a custom character from PROGMEM-provided byte map (8 bytes). */
-void lcd_create_char_P(lcd_t *lcd, uint8_t location, const uint8_t *charmap);
+    /* Create a custom character from PROGMEM-provided byte map (8 bytes). */
+    void create_char_P(uint8_t location, const uint8_t *charmap);
 
-/* Write a single byte/character to the current cursor position. */
-void lcd_write(lcd_t *lcd, uint8_t value);
+    /* Write a single byte/character to the current cursor position. */
+    void write(uint8_t value);
 
-/* Write a NUL-terminated C string from RAM to the display. */
-void lcd_print(lcd_t *lcd, const unsigned char *str);
+    /* Write a NUL-terminated C string from RAM to the display. */
+    void print(const unsigned char *str);
 
-/* Write a NUL-terminated string stored in PROGMEM to the display. */
-void lcd_print_P(lcd_t *lcd, const unsigned char *str);
+    /* Write a NUL-terminated string stored in PROGMEM to the display. */
+    void print_P(const unsigned char *str);
+};
 
 #endif
