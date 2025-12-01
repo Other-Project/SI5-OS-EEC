@@ -19,6 +19,7 @@
 #include "drivers/rfid/rfid.h"
 #include "drivers/buzzer/buzzer.h"
 #include "drivers/ultrasonic/ultrasonic.h"
+#include "drivers/button/button.h"
 
 /******************************************************************************
  * Private macro definitions.
@@ -37,16 +38,20 @@ static void vUltrasonicTask(void *pvParameters);
 /*const uint8_t redLed   = _BV(PD2);
 const uint8_t greenLed = _BV(PD3);*/
 
-static RFID_Reader rfid(2, 3);
+static RFID_Reader rfid(7, 8);
 static uint8_t buffer[16];
 static LCD lcd = LCD();
 static Buzzer grooveBuzzer(&DDRD, &PORTD, _BV(PD6));
+static Button myButton(2); // uniquement pin 2 ou 3
 
 int main(void)
 {
     // Initialize the LCD
     lcd.begin(16, 2, LCD_2LINE);
     lcd.clear();
+
+    // Initialize the button
+    myButton.init();
 
     rfid.begin(9600);
 
@@ -124,12 +129,12 @@ static void vBuzzerTask(void *pvParameters)
 
     while (1)
     {
+        //wait for button press
+        myButton.waitForPress();
+
         // Bip
         grooveBuzzer.on();
-        vTaskDelay(100 / portTICK_PERIOD_MS); // Son pendant 100ms
-        
-        // Silence
+        vTaskDelay(5000 / portTICK_PERIOD_MS); // Son pendant 100ms
         grooveBuzzer.off();
-        vTaskDelay(1000 / portTICK_PERIOD_MS); // Silence pendant 9sec
     }
 }
