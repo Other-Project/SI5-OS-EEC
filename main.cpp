@@ -20,6 +20,7 @@
 #include "drivers/buzzer/buzzer.h"
 #include "drivers/ultrasonic/ultrasonic.h"
 #include "drivers/button/button.h"
+#include "drivers/rotary_angle/rotary_angle.h"
 
 /******************************************************************************
  * Private macro definitions.
@@ -33,6 +34,7 @@
 static void vReadRfid(void *pvParameters);
 static void vBuzzerTask(void *pvParameters);
 static void vUltrasonicTask(void *pvParameters);
+static void vRotaryAngleTask(void *pvParameters);
 
 // constant to ease the reading....
 /*const uint8_t redLed   = _BV(PD2);
@@ -43,6 +45,7 @@ static uint8_t buffer[16];
 static LCD lcd = LCD();
 static Buzzer grooveBuzzer(&DDRD, &PORTD, _BV(PD6));
 static Button myButton(2); // uniquement pin 2 ou 3
+static RotaryAngle rotaryAngle(0); // A0
 
 int main(void)
 {
@@ -55,13 +58,15 @@ int main(void)
 
     rfid.begin(9600);
 
-    xTaskCreate(
+    rotaryAngle.init();
+
+    /*xTaskCreate(
         vReadRfid,
         "rfid",
         configMINIMAL_STACK_SIZE,
         NULL,
         1U,
-        NULL);
+        NULL);*/
 
     xTaskCreate(
         vBuzzerTask,
@@ -78,6 +83,14 @@ int main(void)
         NULL,
         1U,
         NULL);*/
+
+    xTaskCreate(
+        vRotaryAngleTask,
+        "rotary",
+        configMINIMAL_STACK_SIZE,
+        NULL,
+        1U,
+        NULL);
 
     // Start scheduler.
     vTaskStartScheduler();
@@ -141,5 +154,24 @@ static void vBuzzerTask(void *pvParameters)
         grooveBuzzer.on();
         vTaskDelay(5000 / portTICK_PERIOD_MS); // Son pendant 100ms
         grooveBuzzer.off();
+    }
+}
+
+static void vRotaryAngleTask(void *pvParameters)
+{
+    TickType_t xLastWakeUpTime = xTaskGetTickCount();
+    char displayBuffer[16];
+
+    while (1)
+    {
+        long angle = rotaryAngle.readDegrees();
+
+        lcd.clear();
+        // Affiche l'angle en degrés (ex: "Angle: 123.4 deg")
+        snprintf(displayBuffer, sizeof(displayBuffer), "Angle: %ld deg", angle);
+        lcd.print((uint8_t *)displayBuffer);
+
+        // Rafraichissement toutes les 500ms
+        vTaskDelayUntil(&xLastWakeUpTime, 500 / portTICK_PERIOD_MS);
     }
 }

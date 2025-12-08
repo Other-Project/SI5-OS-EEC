@@ -16,7 +16,7 @@ ARDUINO_BOARD := ARDUINO_AVR_UNO
 ARDUINO_ARCH := ARDUINO_ARCH_AVR
 
 # Compiler Flags
-COMMON_FLAGS := -g -Os -w -mmcu=$(MCU) -DF_CPU=$(F_CPU) \
+COMMON_FLAGS := -gdwarf-2 -Os -w -mmcu=$(MCU) -DF_CPU=$(F_CPU) \
                 -DARDUINO=$(ARDUINO_VERSION) \
                 -D$(ARDUINO_BOARD) \
                 -D$(ARDUINO_ARCH) \
@@ -65,7 +65,8 @@ CXX_SOURCES := \
     drivers/rfid/rfid.cpp \
     drivers/ultrasonic/ultrasonic.cpp  \
     drivers/buzzer/buzzer.cpp   \
-    drivers/button/button.cpp
+    drivers/button/button.cpp \
+    drivers/rotary_angle/rotary_angle.cpp
 
 # Generate object file names
 C_OBJECTS := $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o))
