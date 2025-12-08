@@ -21,6 +21,7 @@
 #include "drivers/ultrasonic/ultrasonic.h"
 #include "drivers/button/button.h"
 #include "drivers/rotary_angle/rotary_angle.h"
+#include "drivers/i2c/i2c.h"
 
 /******************************************************************************
  * Private macro definitions.
@@ -35,6 +36,7 @@ static void vReadRfid(void *pvParameters);
 static void vBuzzerTask(void *pvParameters);
 static void vUltrasonicTask(void *pvParameters);
 static void vRotaryAngleTask(void *pvParameters);
+static void vI2CTask(void *pvParameters);
 
 // constant to ease the reading....
 /*const uint8_t redLed   = _BV(PD2);
@@ -42,16 +44,19 @@ const uint8_t greenLed = _BV(PD3);*/
 
 static RFID_Reader rfid(7, 8);
 static uint8_t buffer[16];
-static LCD lcd = LCD();
+//static LCD lcd = LCD();
 static Buzzer grooveBuzzer(&DDRD, &PORTD, _BV(PD6));
 static Button myButton(2); // uniquement pin 2 ou 3
 static RotaryAngle rotaryAngle(0); // A0
+static I2C_Reader i2cReader;
 
 int main(void)
 {
     // Initialize the LCD
-    lcd.begin(16, 2, LCD_2LINE);
-    lcd.clear();
+    /*lcd.begin(16, 2, LCD_2LINE);
+    lcd.clear();*/
+
+    i2cReader.begin();
 
     // Initialize the button
     myButton.init();
@@ -92,6 +97,14 @@ int main(void)
         1U,
         NULL);
 
+    xTaskCreate(
+        vI2CTask,
+        "i2c",
+        configMINIMAL_STACK_SIZE,
+        NULL,
+        1U,
+        NULL);
+
     // Start scheduler.
     vTaskStartScheduler();
 
@@ -111,15 +124,15 @@ static void vReadRfid(void *pvParameters)
             if (length == 14)
             {
                 buffer[length - 1] = '\0'; // Ignore ending character
-                lcd.clear();
-                lcd.print(buffer + 1); // Skip starting character
+                /*lcd.clear();
+                lcd.print(buffer + 1); // Skip starting character*/
                 vTaskDelayUntil(&xLastWakeUpTime, 2000 / portTICK_PERIOD_MS);
                 continue;
             }
         }
 
-        lcd.clear();
-        lcd.print("No RFID Data");
+        /*lcd.clear();
+        lcd.print("No RFID Data");*/
         vTaskDelayUntil(&xLastWakeUpTime, 50 / portTICK_PERIOD_MS); // Polling delay
     }
 }
@@ -133,8 +146,8 @@ static void vUltrasonicTask(void *pvParameters)
     {
         long distance_cm = ultrasonic.MeasureInMillimeters();
         snprintf((char *)buffer, sizeof(buffer), "Dist: %ld mm", distance_cm % 100);
-        lcd.clear();
-        lcd.print(buffer);
+        /*lcd.clear();
+        lcd.print(buffer);*/
         // Here you can add code to display the distance on the LCD or process it further
         vTaskDelayUntil(&xLastWakeUpTime, 1000 / portTICK_PERIOD_MS); // Polling delay
     }
@@ -166,12 +179,38 @@ static void vRotaryAngleTask(void *pvParameters)
     {
         long angle = rotaryAngle.readDegrees();
 
-        lcd.clear();
+        //lcd.clear();
         // Affiche l'angle en degrés (ex: "Angle: 123.4 deg")
         snprintf(displayBuffer, sizeof(displayBuffer), "Angle: %ld deg", angle);
-        lcd.print((uint8_t *)displayBuffer);
+        //lcd.print((uint8_t *)displayBuffer);
 
         // Rafraichissement toutes les 500ms
         vTaskDelayUntil(&xLastWakeUpTime, 500 / portTICK_PERIOD_MS);
+    }
+}
+
+static void vI2CTask(void *pvParameters)
+{
+    TickType_t xLastWakeUpTime = xTaskGetTickCount();
+    size_t length;
+    while (1)
+    {
+        if (i2cReader.dataAvailable())
+        {
+            buffer[0] = '\0';
+            length = i2cReader.readData(buffer, sizeof(buffer) - 1);
+            if (length == 14)
+            {
+                buffer[length - 1] = '\0'; // Ignore ending character
+                /*lcd.clear();
+                lcd.print(buffer + 1); // Skip starting character*/
+                vTaskDelayUntil(&xLastWakeUpTime, 2000 / portTICK_PERIOD_MS);
+                continue;
+            }
+        }
+
+        /*lcd.clear();
+        lcd.print("No RFID Data");*/
+        vTaskDelayUntil(&xLastWakeUpTime, 50 / portTICK_PERIOD_MS); // Polling delay
     }
 }

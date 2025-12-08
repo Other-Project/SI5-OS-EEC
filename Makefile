@@ -66,7 +66,8 @@ CXX_SOURCES := \
     drivers/ultrasonic/ultrasonic.cpp  \
     drivers/buzzer/buzzer.cpp   \
     drivers/button/button.cpp \
-    drivers/rotary_angle/rotary_angle.cpp
+    drivers/rotary_angle/rotary_angle.cpp \
+    drivers/i2c/i2c.cpp
 
 # Generate object file names
 C_OBJECTS := $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o))
