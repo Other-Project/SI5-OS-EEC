@@ -40,9 +40,9 @@ uint16_t RotaryAngle::readRaw() {
     return adc_read(_analogPin);
 }
 
-long RotaryAngle::readDegrees() {
+uint16_t RotaryAngle::readDegrees() {
     uint16_t raw = readRaw();
     // La plage ADC est 0 - 1023, la plage angle 0 - 300 degrés
-    long degrees = ((long)raw) * 300L / 1023L;
+    uint16_t degrees = (raw * 300) / 1023;
     return degrees;
 }

@@ -21,7 +21,7 @@ public:
     uint16_t readRaw();
 
     // Lit la valeur en degrés (0 - 300 approx), calculée à partir de la lecture analogique
-    long readDegrees();
+    uint16_t readDegrees();
 
 private:
     uint8_t _analogPin;

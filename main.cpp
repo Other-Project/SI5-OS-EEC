@@ -170,11 +170,11 @@ static void vRotaryAngleTask(void *pvParameters)
 
     while (1)
     {
-        long angle = rotaryAngle.readDegrees();
+        uint16_t angle = rotaryAngle.readDegrees();
 
         // lcd.clear();
-        //  Affiche l'angle en degrés (ex: "Angle: 123.4 deg")
-        snprintf((char *)buffer, sizeof(buffer), "Angle: %ld deg", angle);
+        //  Affiche l'angle en degrés (ex: "Angle: 123 deg")
+        snprintf((char *)buffer, sizeof(buffer), "Angle: %u deg", angle);
         // lcd.print((uint8_t *)buffer);
 
         // Rafraichissement toutes les 500ms
