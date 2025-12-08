@@ -167,7 +167,6 @@ static void vBuzzerTask(void *pvParameters)
 static void vRotaryAngleTask(void *pvParameters)
 {
     TickType_t xLastWakeUpTime = xTaskGetTickCount();
-    char displayBuffer[16];
 
     while (1)
     {
@@ -175,8 +174,8 @@ static void vRotaryAngleTask(void *pvParameters)
 
         // lcd.clear();
         //  Affiche l'angle en degrés (ex: "Angle: 123.4 deg")
-        snprintf(displayBuffer, sizeof(displayBuffer), "Angle: %ld deg", angle);
-        // lcd.print((uint8_t *)displayBuffer);
+        snprintf((char *)buffer, sizeof(buffer), "Angle: %ld deg", angle);
+        // lcd.print((uint8_t *)buffer);
 
         // Rafraichissement toutes les 500ms
         vTaskDelayUntil(&xLastWakeUpTime, 500 / portTICK_PERIOD_MS);
