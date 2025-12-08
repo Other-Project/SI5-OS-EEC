@@ -65,7 +65,8 @@ CXX_SOURCES := \
     drivers/rfid/rfid.cpp \
     drivers/ultrasonic/ultrasonic.cpp  \
     drivers/buzzer/buzzer.cpp   \
-    drivers/button/button.cpp
+    drivers/button/button.cpp \
+    drivers/rotary_angle/rotary_angle.cpp
 
 # Generate object file names
 C_OBJECTS := $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o))
