@@ -40,13 +40,13 @@ uint64_t RFID_Reader::readCardNumber()
             value = c - 'A' + 10;
         else if (c >= 'a' && c <= 'f')
             value = c - 'a' + 10;
-        else if (c == 0x03) // start/stop bytes
-            break;
+        else if (c == 0x03)
+            break; // stop byte
         cardNumber = (cardNumber << 4) | value;
     }
 
     while (SoftSerial.available())
         SoftSerial.read(); // flush remaining bytes
-        
+
     return cardNumber;
 }
