@@ -12,7 +12,8 @@ public:
     RFID_Reader(int rxPin, int txPin) : SoftSerial(rxPin, txPin) {}
     void begin(long baudRate = 9600);
     bool dataAvailable();
-    size_t readData(uint8_t *buffer, size_t maxLength);
+    size_t readRawData(uint8_t *buffer, size_t maxLength);
+    uint64_t readCardNumber();
 };
 
 #endif

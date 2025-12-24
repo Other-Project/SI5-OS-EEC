@@ -1,195 +1,147 @@
-/*
- * --------------------------------------------------------------------------------
- * "THE BEER-WARE LICENSE" (Revision 42):
- * <julien.deantoni@univ-cotedazur.fr> wrote this file.
- * As long as you retain this notice you can do whatever you want with this stuff.
- * If we meet some day, and you think this stuff is worth it,
- * you can buy me a beer in return.  Julien Deantoni
- * --------------------------------------------------------------------------------
- */
-
-/******************************************************************************
- * Header file inclusions.
- ******************************************************************************/
-
 #include "FreeRTOS.h"
-#include "task.h" /* RTOS task related API prototypes. */
+#include "task.h"
 #include <avr/io.h>
+#include <Wire.h>
 #include "drivers/lcd/lcd.h"
 #include "drivers/rfid/rfid.h"
 #include "drivers/buzzer/buzzer.h"
 #include "drivers/ultrasonic/ultrasonic.h"
 #include "drivers/button/button.h"
 #include "drivers/rotary_angle/rotary_angle.h"
-#include <Wire.h>
+#include "drivers/i2c/i2c.h"
+#include "consts.h"
 
-/******************************************************************************
- * Private macro definitions.
- ******************************************************************************/
-
-// Each task is assigned a priority from 0 to ( configMAX_PRIORITIES - 1 ), where configMAX_PRIORITIES is defined within FreeRTOSConfig.h.
-//  Low priority numbers denote low priority tasks. The idle task has priority zero (tskIDLE_PRIORITY).
-#define mainLED_TASK_PRIORITY (tskIDLE_PRIORITY)
-
-// tasks handler defined after the main
-static void vReadRfid(void *pvParameters);
-static void vBuzzerTask(void *pvParameters);
+// Tasks
 static void vUltrasonicTask(void *pvParameters);
-static void vRotaryAngleTask(void *pvParameters);
+static void vReadRfid(void *pvParameters);
+static void vButtonTask(void *pvParameters);
 
-// constant to ease the reading....
-/*const uint8_t redLed   = _BV(PD2);
-const uint8_t greenLed = _BV(PD3);*/
-
+// Peripherals
 static RFID_Reader rfid(7, 8);
-static uint8_t buffer[16];
-// static LCD lcd = LCD();
-static Buzzer grooveBuzzer(&DDRD, &PORTD, _BV(PD6));
+static Buzzer buzzer(&DDRD, &PORTD, _BV(PD6));
 static Buzzer led(&DDRD, &PORTD, _BV(PD5));
-static Button myButton(2);         // uniquement pin 2 ou 3
-static RotaryAngle rotaryAngle(0); // A0
-static void receiveData(int byteCount);
+static Button button(2);
+static RotaryAngle rotaryAngle(0);
+
+void setEventFlag(uint8_t event, bool enable)
+{
+    uint8_t currentEvents = I2C_Protocol::getRegister(REG_EVENTS);
+    if (enable)
+        currentEvents |= event;
+    else
+        currentEvents &= ~event;
+    I2C_Protocol::setRegister(REG_EVENTS, currentEvents);
+}
+
+void onStatusChange(uint8_t newStatus)
+{
+    switch (newStatus)
+    {
+    case STATUS_DISARMED:
+        led.off();
+        buzzer.off();
+        break;
+    case STATUS_ARMED:
+        led.on();
+        buzzer.off();
+        break;
+    case STATUS_TRIGGERED:
+        // TODO: Led blinking
+        buzzer.on();
+        break;
+    default:
+        break;
+    }
+}
+
+void onI2CCommand(uint8_t reg, uint8_t value)
+{
+    switch (reg)
+    {
+    case REG_STATUS:
+        onStatusChange(value);
+        break;
+    default:
+        break;
+    }
+}
 
 int main(void)
 {
-    // Initialize the LCD
-    /*lcd.begin(16, 2, LCD_2LINE);
-    lcd.clear();*/
+    // Initialize Wire (required before I2C_Protocol)
+    Wire.begin();
 
-    Wire.begin(0x32);
+    // Initialize I2C in slave mode (address 0x32)
+    I2C_Protocol::init(0x32);
+
+    // Register callbacks for commands coming from the Raspberry Pi
+    I2C_Protocol::registerCallback(onI2CCommand);
+
+    // Initialize peripherals
     led.init();
-    Wire.onReceive(receiveData);
-
-    // Initialize the button
-    myButton.init();
-
+    buzzer.init();
+    button.init();
     rfid.begin(9600);
-
     rotaryAngle.init();
 
-    /*xTaskCreate(
-        vReadRfid,
-        "rfid",
-        configMINIMAL_STACK_SIZE,
-        NULL,
-        1U,
-        NULL);*/
+    // Create tasks
+    xTaskCreate(vUltrasonicTask, "ultrasonic", configMINIMAL_STACK_SIZE, NULL, 1U, NULL);
+    xTaskCreate(vReadRfid, "rfid", configMINIMAL_STACK_SIZE, NULL, 1U, NULL);
+    xTaskCreate(vButtonTask, "button", configMINIMAL_STACK_SIZE, NULL, 1U, NULL);
 
-    xTaskCreate(
-        vBuzzerTask,
-        "buzzer",
-        configMINIMAL_STACK_SIZE,
-        NULL,
-        1U,
-        NULL);
-
-    /*xTaskCreate(
-        vUltrasonicTask,
-        "ultrasonic",
-        configMINIMAL_STACK_SIZE,
-        NULL,
-        1U,
-        NULL);*/
-
-    xTaskCreate(
-        vRotaryAngleTask,
-        "rotary",
-        configMINIMAL_STACK_SIZE,
-        NULL,
-        1U,
-        NULL);
-
-    // Start scheduler.
+    // Start scheduler
     vTaskStartScheduler();
 
     return 0;
 }
 
+static void vUltrasonicTask(void *pvParameters)
+{
+    Ultrasonic ultrasonic(&PORTD, &DDRD, &PIND, PD4);
+    TickType_t xLastWakeUpTime = xTaskGetTickCount();
+
+    while (1)
+    {
+        uint16_t distance_mm = ultrasonic.MeasureInMillimeters();
+        setEventFlag(EVENT_MOTION_DETECTED, distance_mm > 1000);
+        vTaskDelayUntil(&xLastWakeUpTime, 200 / portTICK_PERIOD_MS);
+    }
+}
+
 static void vReadRfid(void *pvParameters)
 {
     TickType_t xLastWakeUpTime = xTaskGetTickCount();
-    size_t length;
     while (1)
     {
+        setEventFlag(EVENT_RFID_READ, false);
         if (rfid.dataAvailable())
         {
-            buffer[0] = '\0';
-            length = rfid.readData(buffer, sizeof(buffer) - 1);
-            if (length == 14)
+            uint64_t cardNumber = rfid.readCardNumber(); // 48 bits card number
+            if (cardNumber != 0)
             {
-                buffer[length - 1] = '\0'; // Ignore ending character
-                /*lcd.clear();
-                lcd.print(buffer + 1); // Skip starting character*/
-                vTaskDelayUntil(&xLastWakeUpTime, 2000 / portTICK_PERIOD_MS);
-                continue;
+                // Store card number in I2C register
+                for (int i = 0; i < 6; i++)
+                {
+                    uint8_t byteValue = (cardNumber >> (8 * (5 - i))) & 0xFF;
+                    I2C_Protocol::setRegister(REG_RFID + i, byteValue);
+                }
+
+                // Set RFID read event
+                setEventFlag(EVENT_RFID_READ, true);
             }
         }
-
-        /*lcd.clear();
-        lcd.print("No RFID Data");*/
-        vTaskDelayUntil(&xLastWakeUpTime, 50 / portTICK_PERIOD_MS); // Polling delay
+        vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS);
     }
 }
 
-static void vUltrasonicTask(void *pvParameters)
-{
-    // Connected to D4 on the Base Shield
-    Ultrasonic ultrasonic(&PORTD, &DDRD, &PIND, PD4);
-    TickType_t xLastWakeUpTime = xTaskGetTickCount();
-    while (1)
-    {
-        long distance_cm = ultrasonic.MeasureInMillimeters();
-        snprintf((char *)buffer, sizeof(buffer), "Dist: %ld mm", distance_cm % 100);
-        /*lcd.clear();
-        lcd.print(buffer);*/
-        // Here you can add code to display the distance on the LCD or process it further
-        vTaskDelayUntil(&xLastWakeUpTime, 1000 / portTICK_PERIOD_MS); // Polling delay
-    }
-}
-
-static void vBuzzerTask(void *pvParameters)
-{
-    // Initialisation matérielle (direction des I/O)
-    grooveBuzzer.init();
-
-    while (1)
-    {
-        // wait for button press
-        myButton.waitForPress();
-
-        // Bip
-        grooveBuzzer.on();
-        vTaskDelay(5000 / portTICK_PERIOD_MS); // Son pendant 100ms
-        grooveBuzzer.off();
-    }
-}
-
-static void vRotaryAngleTask(void *pvParameters)
+static void vButtonTask(void *pvParameters)
 {
     TickType_t xLastWakeUpTime = xTaskGetTickCount();
-
     while (1)
     {
-        uint16_t angle = rotaryAngle.readDegrees();
-
-        // lcd.clear();
-        //  Affiche l'angle en degrés (ex: "Angle: 123 deg")
-        snprintf((char *)buffer, sizeof(buffer), "Angle: %u deg", angle);
-        // lcd.print((uint8_t *)buffer);
-
-        // Rafraichissement toutes les 500ms
-        vTaskDelayUntil(&xLastWakeUpTime, 500 / portTICK_PERIOD_MS);
+        setEventFlag(EVENT_BTN_PRESSED, false);
+        if (button.waitForPress())
+            setEventFlag(EVENT_BTN_PRESSED, true);
+        vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS);
     }
-}
-
-static void receiveData(int byteCount)
-{
-    uint8_t number;
-    while (Wire.available())
-        number = Wire.read();
-
-    if (number)
-        led.on();
-    else
-        led.off();
 }

@@ -26,6 +26,7 @@ Do the following wiring:
 |:-------:|:----------:|:---------------:|
 |   D2    |   Button   |                 |
 |   D4    | Ultrasonic |                 |
+|   D5    |    LED     |                 |
 |   D6    |   Buzzer   |                 |
 |   D7    |    RFID    |                 |
 |   A0    |   Rotary   |                 |
