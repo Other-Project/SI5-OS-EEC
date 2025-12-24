@@ -9,27 +9,18 @@ I2C_SLAVE_ADDR = 0x32
 I2C_BUS = 1
 
 # Map des registres (doit correspondre à i2c.h de l'Arduino)
-REG_STATUS          = 0x00
-REG_ALARM_STATE     = 0x01
-REG_LED_CMD         = 0x02
-REG_MOTION_DETECTED = 0x03
-REG_BUZZER_CMD      = 0x04
-REG_DISTANCE_H      = 0x05
-REG_DISTANCE_L      = 0x06
-REG_RFID_STATUS     = 0x07
-REG_RFID_ID_0       = 0x08
-REG_RFID_ID_1       = 0x09
-REG_RFID_ID_2       = 0x0A
-REG_RFID_ID_3       = 0x0B
-REG_RFID_ID_4       = 0x0C
-REG_RFID_ID_5       = 0x0D
-#REG_RFID_ID_6       = 0x0E
-#REG_RFID_ID_7       = 0x0F
-#REG_ROTARY_ANGLE    = 0x10
-REG_BUTTON_STATE    = 0x11
-REG_COMMAND         = 0x12
-REG_ERROR_CODE      = 0x13
-
+REG_STATUS = 0x00 # System status register
+REG_EVENTS = 0x01 # Event flags register
+REG_RFID = 0x02 # RFID tag data 6 registers (0x02 to 0x07)
+#REG_RFID_VALUE_1 = 0x03
+#REG_RFID_VALUE_2 = 0x04
+#REG_RFID_VALUE_3 = 0x05
+#REG_RFID_VALUE_4 = 0x06
+#REG_RFID_VALUE_5 = 0x07
+REG_LED_ALARM_STATE = 0x08
+REG_MOTION_DETECTED = 0x09
+REG_BUZZER = 0x0A
+REG_BUTTON = 0x0B
 
 class Arduino(i2c_device):
     def __init__(self, bus=I2C_BUS, address=I2C_SLAVE_ADDR):
@@ -37,20 +28,37 @@ class Arduino(i2c_device):
     
     # Active/désactive l'alarme
     def set_alarm(self, enabled):
-        return self.write_register(REG_ALARM_STATE, 1 if enabled else 0)
+        return self.write_register(REG_LED_ALARM_STATE, 1 if enabled else 0)
     
-    # Lit l'état de l'alarme
+    # Lit l'état de l'alarme sur la LED
     def get_alarm_state(self):
-        return bool(self.read_register(REG_ALARM_STATE))
+        return bool(self.read_register(REG_LED_ALARM_STATE))
+    
+    # Active/désactive la LED indiquant l'état de l'alarme
+    def set_led(self, enabled):
+        return self.write_register(REG_LED_ALARM_STATE, 1 if enabled else 0)
     
     # Active/désactive le buzzer
     def set_buzzer(self, enabled):
-        return self.write_register(REG_BUZZER_CMD, 1 if enabled else 0)
+        return self.write_register(REG_BUZZER, 1 if enabled else 0)
+ 
+    # Vérifie si un mouvement est détecté
+    def is_motion_detected(self):
+        return bool(self.read_register(REG_MOTION_DETECTED))
     
-    # Active/désactive la LED
-    def set_led(self, enabled):
-        return self.write_register(REG_LED_CMD, 1 if enabled else 0)
+    # Lit l'ID du badge RFID (6 bytes)
+    def get_rfid_tag(self):
+        values = self.read_registers(REG_RFID, 6)
+        if values:
+            
+            tag_id = ''.join(f'{b:02X}' for b in values) # Convertir en string hexadécimal
+            return tag_id
+        return None
     
+    # Lit le status général du système
+    def get_status(self):
+        return self.read_register(REG_STATUS)
+    """
     # Lit la distance du capteur ultrason (en mm)
     def get_distance(self):
         values = self.read_registers(REG_DISTANCE_H, 2)
@@ -58,36 +66,16 @@ class Arduino(i2c_device):
             distance = (values[0] << 8) | values[1]
             return distance
         return None
-    
-    # Vérifie si un mouvement est détecté
-    def is_motion_detected(self):
-        return bool(self.read_register(REG_MOTION_DETECTED))
-    
-    # Lit l'ID du badge RFID (8 bytes)
-    def get_rfid_tag(self):
-        status = self.read_register(REG_RFID_STATUS)
-        if not status:
-            return None
-        
-        values = self.read_registers(REG_RFID_ID_0, 6)
-        if values:
-            
-            tag_id = ''.join(f'{b:02X}' for b in values) # Convertir en string hexadécimal
-            return tag_id
-        return None
-    
-    """# Lit l'angle du potentiomètre (0-300°)
+
+    # Lit l'angle du potentiomètre (0-300°)
     def get_rotary_angle(self):
         value = self.read_register(REG_ROTARY_ANGLE)
         if value is not None:
             # Convertir de 0-255 vers 0-300°
             angle = (value * 300) / 255
             return angle
-        return None"""
-
-    # Lit le status général du système
-    def get_status(self):
-        return self.read_register(REG_STATUS)
+        return None
+    """
 
 
 def test_basic_communication():
