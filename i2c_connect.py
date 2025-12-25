@@ -65,7 +65,7 @@ class ArduinoI2C:
     
     def get_alarm_state(self):
         """Lit l'état de l'alarme"""
-        return bool(self.read_register(REG_STATUS))
+        return self.read_register(REG_STATUS)
         
     def is_motion_detected(self):
         """Vérifie si un mouvement est détecté"""
@@ -95,8 +95,8 @@ def monitor_sensors():
     arduino = ArduinoI2C()
     
     try:
+        arduino.set_alarm(True)  # Activer l'alarme pour tester
         while True:
-            arduino.set_alarm(True)  # Activer l'alarme pour test
 
             # Lire tous les capteurs
             motion = arduino.is_motion_detected()
@@ -104,7 +104,7 @@ def monitor_sensors():
             rfid_tag = arduino.get_rfid_tag()
 
             # Afficher les valeurs
-            print(f"\r[Alarme: {'ON ' if alarm else 'OFF'}] "
+            print(f"\r[Alarme: {'ON ' if alarm == 1 else('TRIGGERED ' if alarm == 2 else 'OFF')}] "
                   f"[Mouvement: {'OUI' if motion else 'NON'}] "
                   f"[RFID: {rfid_tag if rfid_tag else 'Aucun':16s}]", 
                   end='\n', flush=True)

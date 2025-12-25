@@ -13,8 +13,12 @@
 
 // Tasks
 static void vUltrasonicTask(void *pvParameters);
+static void vBlinkTask(void *pvParameters);
 static void vReadRfid(void *pvParameters);
 static void vButtonTask(void *pvParameters);
+
+static TaskHandle_t xUltrasonicHandle = NULL;
+static TaskHandle_t xBlinkHandle = NULL;
 
 // Peripherals
 static RFID_Reader rfid(7, 8);
@@ -38,16 +42,22 @@ void onStatusChange(uint8_t newStatus)
     switch (newStatus)
     {
     case STATUS_DISARMED:
+        vTaskSuspend(xBlinkHandle);
         led.off();
         buzzer.off();
+        vTaskSuspend(xUltrasonicHandle);
         break;
     case STATUS_ARMED:
+        vTaskSuspend(xBlinkHandle);
         led.on();
         buzzer.off();
+        vTaskResume(xUltrasonicHandle);
         break;
     case STATUS_TRIGGERED:
-        // TODO: Led blinking
+        led.on();
         buzzer.on();
+        vTaskSuspend(xUltrasonicHandle);
+        vTaskResume(xBlinkHandle);
         break;
     default:
         break;
@@ -85,9 +95,13 @@ int main(void)
     rotaryAngle.init();
 
     // Create tasks
-    xTaskCreate(vUltrasonicTask, "ultrasonic", configMINIMAL_STACK_SIZE, NULL, 1U, NULL);
+    xTaskCreate(vUltrasonicTask, "ultrasonic", configMINIMAL_STACK_SIZE, NULL, 1U, &xUltrasonicHandle);
+    xTaskCreate(vBlinkTask, "blink", configMINIMAL_STACK_SIZE, NULL, 1U, &xBlinkHandle);
     xTaskCreate(vReadRfid, "rfid", configMINIMAL_STACK_SIZE, NULL, 1U, NULL);
     xTaskCreate(vButtonTask, "button", configMINIMAL_STACK_SIZE, NULL, 1U, NULL);
+
+    vTaskSuspend(xUltrasonicHandle);
+    vTaskSuspend(xBlinkHandle);
 
     // Start scheduler
     vTaskStartScheduler();
@@ -103,7 +117,13 @@ static void vUltrasonicTask(void *pvParameters)
     while (1)
     {
         uint16_t distance_mm = ultrasonic.MeasureInMillimeters();
-        setEventFlag(EVENT_MOTION_DETECTED, distance_mm > 1000);
+        bool motion = distance_mm > 1000;
+        setEventFlag(EVENT_MOTION_DETECTED, motion);
+        if (motion)
+        {
+            I2C_Protocol::setRegister(REG_STATUS, STATUS_TRIGGERED);
+            onStatusChange(STATUS_TRIGGERED);
+        }
         vTaskDelayUntil(&xLastWakeUpTime, 200 / portTICK_PERIOD_MS);
     }
 }
@@ -143,5 +163,16 @@ static void vButtonTask(void *pvParameters)
         if (button.waitForPress())
             setEventFlag(EVENT_BTN_PRESSED, true);
         vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS);
+    }
+}
+
+static void vBlinkTask(void *pvParameters)
+{
+    TickType_t xLastWakeUpTime = xTaskGetTickCount();
+    while (1)
+    {
+        led.toggle();
+        buzzer.toggle();
+        vTaskDelayUntil(&xLastWakeUpTime, 500 / portTICK_PERIOD_MS);
     }
 }
