@@ -53,7 +53,7 @@ En = 0b00000100 # Enable bit
 Rw = 0b00000010 # Read/Write bit
 Rs = 0b00000001 # Register select bit
 
-class lcd(i2c_device):
+class Lcd(i2c_device):
     # initializes objects and lcd
     def __init__(self, address=ADDRESS, bus=I2C_BUS):
         super().__init__(address, bus)
@@ -104,7 +104,7 @@ class lcd(i2c_device):
         self.lcd_write(LCD_RETURNHOME)
 
 def main():
-    lcd = lcd()
+    lcd = Lcd()
 
     lcd.lcd_display_string("Hello world", 1)
     lcd.lcd_display_string("My name is", 2)
