@@ -102,11 +102,14 @@ def monitor_sensors():
             motion = arduino.is_motion_detected()
             alarm = arduino.get_alarm_state()
             rfid_tag = arduino.get_rfid_tag()
+            btn_status = arduino.read_register(REG_EVENTS)
+            btn_pressed = btn_status is not None and (btn_status & EVENT_BTN_PRESSED) != 0
 
             # Afficher les valeurs
             print(f"\r[Alarme: {'ON ' if alarm == 1 else('TRIGGERED ' if alarm == 2 else 'OFF')}] "
                   f"[Mouvement: {'OUI' if motion else 'NON'}] "
                   f"[RFID: {rfid_tag if rfid_tag else 'Aucun':16s}]", 
+                  f"[Btn: {'PRESSED' if btn_pressed else 'RELEASED'}]",
                   end='\n', flush=True)
             
             time.sleep(0.2)
