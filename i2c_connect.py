@@ -96,7 +96,7 @@ def monitor_sensors():
     
     try:
         arduino.set_alarm(True)  # Activer l'alarme pour tester
-        while True:           
+        while True:
 
             # Lire tous les capteurs
             motion = arduino.is_motion_detected()
