@@ -4,10 +4,10 @@ from raspberry_i2c_lib import i2c_device
 from time import sleep
 
 # LCD Address
-ADDRESS = 0x27
+ADDRESS = 0x3E
 I2C_BUS = 1
 
-# commands
+# Commandes de base
 LCD_CLEARDISPLAY = 0x01
 LCD_RETURNHOME = 0x02
 LCD_ENTRYMODESET = 0x04
@@ -17,100 +17,81 @@ LCD_FUNCTIONSET = 0x20
 LCD_SETCGRAMADDR = 0x40
 LCD_SETDDRAMADDR = 0x80
 
-# flags for display entry mode
-LCD_ENTRYRIGHT = 0x00
+# Flags pour display entry mode
 LCD_ENTRYLEFT = 0x02
 LCD_ENTRYSHIFTINCREMENT = 0x01
-LCD_ENTRYSHIFTDECREMENT = 0x00
 
-# flags for display on/off control
+# Flags pour display on/off control
 LCD_DISPLAYON = 0x04
-LCD_DISPLAYOFF = 0x00
-LCD_CURSORON = 0x02
 LCD_CURSOROFF = 0x00
-LCD_BLINKON = 0x01
 LCD_BLINKOFF = 0x00
 
-# flags for display/cursor shift
-LCD_DISPLAYMOVE = 0x08
-LCD_CURSORMOVE = 0x00
-LCD_MOVERIGHT = 0x04
-LCD_MOVELEFT = 0x00
-
-# flags for function set
-LCD_8BITMODE = 0x10
-LCD_4BITMODE = 0x00
+# Flags pour function set
 LCD_2LINE = 0x08
-LCD_1LINE = 0x00
-LCD_5x10DOTS = 0x04
 LCD_5x8DOTS = 0x00
 
-# flags for backlight control
-LCD_BACKLIGHT = 0x08
-LCD_NOBACKLIGHT = 0x00
-
-En = 0b00000100 # Enable bit
-Rw = 0b00000010 # Read/Write bit
-Rs = 0b00000001 # Register select bit
-
 class Lcd(i2c_device):
-    # initializes objects and lcd
     def __init__(self, address=ADDRESS, bus=I2C_BUS):
         super().__init__(address, bus)
 
-        self.lcd_write(0x03)
-        self.lcd_write(0x03)
-        self.lcd_write(0x03)
-        self.lcd_write(0x02)
-        self.lcd_write(LCD_FUNCTIONSET | LCD_2LINE | LCD_5x8DOTS | LCD_4BITMODE)
-        self.lcd_write(LCD_DISPLAYCONTROL | LCD_DISPLAYON)
-        self.lcd_write(LCD_CLEARDISPLAY)
-        self.lcd_write(LCD_ENTRYMODESET | LCD_ENTRYLEFT)
+        sleep(0.2)
+        
+        self.lcd_write_cmd(LCD_FUNCTIONSET | LCD_2LINE | LCD_5x8DOTS)
+        sleep(0.2)
+        self.lcd_write_cmd(LCD_FUNCTIONSET | LCD_2LINE | LCD_5x8DOTS)
+        sleep(0.2)
+        
+        self.lcd_write_cmd(LCD_DISPLAYCONTROL | LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF)
+        self.lcd_clear()
+        self.lcd_write_cmd(LCD_ENTRYMODESET | LCD_ENTRYLEFT | LCD_ENTRYSHIFTINCREMENT)
         sleep(0.2)
 
-    # clocks EN to latch command
-    def lcd_strobe(self, data):
-        self.write_cmd(data | En | LCD_BACKLIGHT)
-        sleep(.0005)
-        self.write_cmd(((data & ~En) | LCD_BACKLIGHT))
-        sleep(.0001)
+    # Registre 0x80 = Envoyer une commande
+    def lcd_write_cmd(self, cmd):
+        self.write_register(0x80, cmd)
 
-    def lcd_write_four_bits(self, data):
-        self.write_cmd(data | LCD_BACKLIGHT)
-        self.lcd_strobe(data)
+    # Registre 0x40 = Envoyer une donnée (caractère)
+    def lcd_write_char(self, char_value):
+        self.write_register(0x40, char_value)
 
-    # write a command to lcd
-    def lcd_write(self, cmd, mode=0):
-        self.lcd_write_four_bits(mode | (cmd & 0xF0))
-        self.lcd_write_four_bits(mode | ((cmd << 4) & 0xF0))
-
-    # put string function
+    # Afficher une chaîne de caractères
     def lcd_display_string(self, string, line):
         if line == 1:
-            self.lcd_write(0x80)
-        if line == 2:
-            self.lcd_write(0xC0)
-        if line == 3:
-            self.lcd_write(0x94)
-        if line == 4:
-            self.lcd_write(0xD4)
+            self.lcd_write_cmd(0x80 | 0x00) # Adresse début ligne 1
+        elif line == 2:
+            self.lcd_write_cmd(0x80 | 0x40) # Adresse début ligne 2 (+ 0x40)
 
         for char in string:
-            self.lcd_write(ord(char), Rs)
+            self.lcd_write_char(ord(char))
 
-   # clear lcd and set to home
     def lcd_clear(self):
-        self.lcd_write(LCD_CLEARDISPLAY)
-        self.lcd_write(LCD_RETURNHOME)
+        self.lcd_write_cmd(LCD_CLEARDISPLAY)
+        sleep(0.0001)
+        self.lcd_write_cmd(LCD_RETURNHOME)
+        sleep(0.0001)
 
 def main():
-    lcd = Lcd()
-
-    lcd.lcd_display_string("Hello world", 1)
-    lcd.lcd_display_string("My name is", 2)
-    lcd.lcd_display_string("picorder", 3)
-    lcd.lcd_display_string("I am a Raspberry Pi", 4)
-
+    try:
+        print(f"Tentative de connexion à l'écran sur 0x{ADDRESS:02X}...")
+        lcd = Lcd()
+        print("Écriture sur l'écran...")
+        
+        lcd.lcd_display_string("Hello world", 1)
+        lcd.lcd_display_string("Raspberry Pi", 2)
+        
+        # Petit test de clignotement du texte pour vérifier que le script tourne
+        while True:
+            sleep(2)
+            lcd.lcd_clear()
+            sleep(0.5)
+            lcd.lcd_display_string("It Works!", 1)
+            
+    except KeyboardInterrupt:
+        print("\nArrêt du programme")
+        try:
+            lcd.lcd_clear()
+        except:
+            pass
 
 if __name__ == "__main__":
     main()

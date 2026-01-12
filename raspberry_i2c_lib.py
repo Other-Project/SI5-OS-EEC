@@ -2,8 +2,8 @@ from smbus2 import SMBus
 from time import *
 
 class i2c_device:
-    def __init__(self, addr, bus):
-      self.addr = addr
+    def __init__(self, address, bus):
+      self.address = address
       self.bus = SMBus(bus)
 
     # Écrit une valeur dans un registre
@@ -38,31 +38,31 @@ class i2c_device:
         except Exception as e:
             print(f"Erreur lecture multiple: {e}")
             return None
-
-    # Écrit une simple commande
-    def write_cmd(self, cmd):
-        self.bus.write_byte(self.addr, cmd)
-        sleep(0.0001)
 """
+    # Write a simple command
+    def write_cmd(self, cmd):
+        self.bus.write_byte(self.address, cmd)
+        sleep(0.0001)
+
     # Write a command and argument
-   def write_cmd_arg(self, cmd, data):
-      self.bus.write_byte_data(self.addr, cmd, data)
-      sleep(0.0001)
+    def write_cmd_arg(self, cmd, data):
+        self.bus.write_byte_data(self.address, cmd, data)
+        sleep(0.0001)
 
     # Write a block of data
-   def write_block_data(self, cmd, data):
-      self.bus.write_block_data(self.addr, cmd, data)
+    def write_block_data(self, cmd, data):
+      self.bus.write_block_data(self.address, cmd, data)
       sleep(0.0001)
 
     # Read a single byte
-   def read(self):
-      return self.bus.read_byte(self.addr)
+    def read(self):
+      return self.bus.read_byte(self.address)
 
     # Read
-   def read_data(self, cmd):
-      return self.bus.read_byte_data(self.addr, cmd)
+    def read_data(self, cmd):
+      return self.bus.read_byte_data(self.address, cmd)
 
     # Read a block of data
-   def read_block_data(self, cmd):
-      return self.bus.read_block_data(self.addr, cmd)
+    def read_block_data(self, cmd):
+      return self.bus.read_block_data(self.address, cmd)
 """
