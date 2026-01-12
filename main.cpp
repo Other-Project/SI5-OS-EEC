@@ -87,6 +87,10 @@ int main(void)
     // Register callbacks for commands coming from the Raspberry Pi
     I2C_Protocol::registerCallback(onI2CCommand);
 
+    // Set initial register values
+    I2C_Protocol::setRegister(REG_STATUS, STATUS_DISARMED);
+    I2C_Protocol::setRegister(REG_ULTRASONIC_DISTANCE, 4); // 20 mm
+
     // Initialize peripherals
     led.init();
     buzzer.init();
@@ -117,7 +121,8 @@ static void vUltrasonicTask(void *pvParameters)
     while (1)
     {
         uint16_t distance_mm = ultrasonic.MeasureInMillimeters();
-        bool motion = distance_mm > 1000;
+        uint16_t max_distance_mm = I2C_Protocol::getRegister(REG_ULTRASONIC_DISTANCE) * 5;
+        bool motion = distance_mm > max_distance_mm;
         setEventFlag(EVENT_MOTION_DETECTED, motion);
         if (motion)
         {

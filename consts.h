@@ -9,6 +9,9 @@
 // RFID tag data registers (0x02 to 0x07)
 #define REG_RFID 0x02
 
+/// Ultrasonic distance register (in steps of 5 mm)
+#define REG_ULTRASONIC_DISTANCE 0x08
+
 #pragma endregion
 
 #pragma region System status
