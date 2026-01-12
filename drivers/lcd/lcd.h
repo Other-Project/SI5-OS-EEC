@@ -71,7 +71,7 @@ private:
     void twi_write(uint8_t data);
     uint8_t twi_get_status(void);
     void i2c_send_byte(uint8_t addr, uint8_t dta);
-    void LCD::i2c_send_bytes(uint8_t addr, uint8_t *dta, uint8_t len);
+    void i2c_send_bytes(uint8_t addr, uint8_t *dta, uint8_t len);
 
     void command(uint8_t value);
 

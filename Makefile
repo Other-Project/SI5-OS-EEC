@@ -26,7 +26,7 @@ COMMON_FLAGS := -gdwarf-2 -Os -w -mmcu=$(MCU) -DF_CPU=$(F_CPU) \
 CFLAGS := $(COMMON_FLAGS) -std=gnu11 -fno-fat-lto-objects
 
 CXXFLAGS := $(COMMON_FLAGS) -std=gnu++11 \
-            -fpermissive -fno-exceptions \
+            -fno-exceptions \
             -fno-threadsafe-statics \
             -Wno-error=narrowing
 
