@@ -4,3 +4,4 @@
 *.hex
 Build/
 target/
+__pycache__/
