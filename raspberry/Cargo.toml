@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 rppal = "0.22.1" # Bibliothèque standard pour GPIO/I2C sur RPi
 anyhow = "1.0" # Pour une gestion d'erreur simplifiée
+bitflags = "2.10.0"
