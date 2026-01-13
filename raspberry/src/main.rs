@@ -59,22 +59,22 @@ fn main() -> Result<()> {
                     .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
                     .split(lines[0]);
 
-                let state_block = Block::default().title("État").borders(Borders::ALL);
-                let state_par = Paragraph::new(format!("{}\n\n[ Mouv: {} | Btn: {} ]", controller.state_icon(), controller.motion_str(), controller.btn_str()))
+                let state_block = Block::default().title("State").borders(Borders::ALL);
+                let state_par = Paragraph::new(format!("{}\n\n[ Motion: {} | Button: {} ]", controller.state_icon(), controller.motion_str(), controller.btn_str()))
                     .block(state_block)
                     .style(Style::default().fg(Color::Yellow))
                     .wrap(Wrap { trim: true });
                 f.render_widget(state_par, monitor_cols[0]);
 
-                let mid_block = Block::default().title("Dernier Badge").borders(Borders::ALL);
-                let last_rfid = controller.last_rfid().unwrap_or("Aucun");
+                let mid_block = Block::default().title("Last Badge").borders(Borders::ALL);
+                let last_rfid = controller.last_rfid().unwrap_or("None");
                 let mid_par = Paragraph::new(format!("{}", last_rfid))
                     .block(mid_block)
                     .style(Style::default().fg(Color::White));
                 f.render_widget(mid_par, monitor_cols[1]);
 
 
-                let history_block = Block::default().title("Historique").borders(Borders::ALL);
+                let history_block = Block::default().title("History").borders(Borders::ALL);
                 let items: Vec<ListItem> = controller.last_messages().iter()
                     .map(|m| ListItem::new(m.clone()).style(Style::default()))
                     .collect();

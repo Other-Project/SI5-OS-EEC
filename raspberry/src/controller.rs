@@ -51,7 +51,7 @@ impl AlarmController {
             match self.current_state {
                 SecurityState::Disarmed => {
                     self.current_state = SecurityState::Armed;
-                    generated_msg = Some("🛑 Armement via Bouton".to_string());
+                    generated_msg = Some("🛑 Armed via Button".to_string());
                 }
                 _ => {}
             }
@@ -65,11 +65,11 @@ impl AlarmController {
                 if VALID_BADGES.contains(&uid.as_str()) {
                     if self.current_state != SecurityState::Disarmed {
                         self.current_state = SecurityState::Disarmed;
-                        generated_msg = Some(format!("🟢 Désarmement via Badge {}", uid));
+                        generated_msg = Some(format!("🟢 Disarmed via Badge {}", uid));
                         state_changed = true;
                     }
                 } else {
-                    generated_msg = Some(format!("⚠️ ACCÈS REFUSÉ : Badge inconnu {}", uid));
+                    generated_msg = Some(format!("⚠️ ACCESS DENIED: Unknown badge {}", uid));
                 }
             }
         }
@@ -77,7 +77,7 @@ impl AlarmController {
         // mouv detecté
         if self.current_state == SecurityState::Armed && events.contains(Events::MOTION_DETECTED) {
             self.current_state = SecurityState::Triggered;
-            generated_msg = Some("🚨 INTRUSION DÉTECTÉE ! ALARME !".to_string());
+            generated_msg = Some("🚨 INTRUSION DETECTED! ALARM!".to_string());
             state_changed = true;
         }
 
@@ -101,25 +101,25 @@ impl AlarmController {
 
     pub fn state_icon(&self) -> &'static str {
         match self.current_state {
-            SecurityState::Disarmed => "🟢 VEILLE",
-            SecurityState::Armed => "🛑 ARMÉE",
-            SecurityState::Triggered => "🚨 SONNERIE",
+            SecurityState::Disarmed => "🟢 DISARMED",
+            SecurityState::Armed => "🛑 ARMED",
+            SecurityState::Triggered => "🚨 ALARM",
         }
     }
 
     pub fn motion_str(&self) -> &'static str {
         if self.last_events.contains(Events::MOTION_DETECTED) {
-            "OUI"
+            "YES"
         } else {
-            "NON"
+            "NO"
         }
     }
 
     pub fn btn_str(&self) -> &'static str {
         if self.last_events.contains(Events::BTN_PRESSED) {
-            "APPUI"
+            "PRESSED"
         } else {
-            "RELÂCHÉ"
+            "RELEASED"
         }
     }
 }
