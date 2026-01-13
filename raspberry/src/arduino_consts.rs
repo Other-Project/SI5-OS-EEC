@@ -16,6 +16,7 @@ pub enum SecurityState {
 }
 
 bitflags! {
+    #[derive(Clone, Copy)]
     pub struct Events: u8 {
         const BTN_PRESSED = 0x01;
         const MOTION_DETECTED = 0x02;
