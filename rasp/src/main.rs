@@ -17,7 +17,7 @@ const EVENT_RFID_READ:       u8 = 0x04;
 
 // Liste des badges autorisés
 const VALID_BADGES: &[&str] = &[
-    "01056de7d6258"
+    "01056DE7D658"
 ];
 
 #[derive(Debug, PartialEq, Clone, Copy)]

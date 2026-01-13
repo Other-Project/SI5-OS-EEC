@@ -153,6 +153,8 @@ static void vReadRfid(void *pvParameters)
 
                 // Set RFID read event
                 setEventFlag(EVENT_RFID_READ, true);
+                vTaskDelay(100 / portTICK_PERIOD_MS);
+                continue;
             }
         }
         vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS);
