@@ -27,8 +27,8 @@ Ce système comprend :
 
 * [Rust](https://www.rust-lang.org/tools/install) for Raspberry Pi code
 * [Docker](https://docs.docker.com/engine/install/) for Rust cross-compilation
-* avrdude for Arduino flashing
-* avr-gcc for Arduino compilation
+* `avrdude` for Arduino flashing
+* `avr-binutils`, `avr-libc`, `avr-gcc` and `avr-gcc-c++` for Arduino compilation
 
 ### Wiring
 
