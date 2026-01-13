@@ -1,30 +1,28 @@
+use anyhow::Result;
 use rppal::i2c::I2c;
+use std::io::{self, Write};
 use std::thread;
 use std::time::Duration;
-use std::io::{self, Write};
-use anyhow::Result;
 
 // Config
 const I2C_SLAVE_ADDR: u16 = 0x32;
 
 const REG_STATUS: u8 = 0x00;
 const REG_EVENTS: u8 = 0x01;
-const REG_RFID:   u8 = 0x02;
+const REG_RFID: u8 = 0x02;
 
-const EVENT_BTN_PRESSED:     u8 = 0x01;
+const EVENT_BTN_PRESSED: u8 = 0x01;
 const EVENT_MOTION_DETECTED: u8 = 0x02;
-const EVENT_RFID_READ:       u8 = 0x04;
+const EVENT_RFID_READ: u8 = 0x04;
 
 // Liste des badges autorisés
-const VALID_BADGES: &[&str] = &[
-    "01056DE7D658"
-];
+const VALID_BADGES: &[&str] = &["01056DE7D658"];
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum SecurityState {
-    Disarmed = 0, // Veille
-    Armed = 1,    // Surveillance
-    Triggered = 2 // ALERTE (Sonnerie)
+    Disarmed = 0,  // Veille
+    Armed = 1,     // Surveillance
+    Triggered = 2, // ALERTE (Sonnerie)
 }
 
 struct ArduinoI2C {
@@ -74,7 +72,9 @@ impl ArduinoI2C {
     fn read_rfid_uid(&mut self) -> Option<String> {
         if let Some(values) = self.read_registers(REG_RFID, 6) {
             let hex: String = values.iter().map(|b| format!("{:02X}", b)).collect();
-            if hex == "000000000000" { return None; }
+            if hex == "000000000000" {
+                return None;
+            }
             return Some(hex);
         }
         None
@@ -103,9 +103,7 @@ fn main() -> Result<()> {
                     current_state = SecurityState::Armed;
                     println!("🛑 Armement via Bouton");
                 }
-                _ => {
-                    
-                }
+                _ => {}
             }
             state_changed = true;
         }
@@ -119,7 +117,7 @@ fn main() -> Result<()> {
                         SecurityState::Disarmed => {
                             current_state = SecurityState::Armed;
                             println!("🛑 Armement via Badge {}", uid);
-                        },
+                        }
                         _ => {
                             // Si Armé ou Triggered -> On désarme
                             current_state = SecurityState::Disarmed;
@@ -150,7 +148,8 @@ fn main() -> Result<()> {
             SecurityState::Triggered => "🚨 SONNERIE",
         };
 
-        println!("[État: {:<10}] [Mouv: {}] [Btn: {}]", 
+        println!(
+            "[État: {:<10}] [Mouv: {}] [Btn: {}]",
             state_icon, 
             if motion_detected { "OUI" } else { "NON" },
             if btn_pressed { "APPUI" } else { "RELÂCHÉ" }
