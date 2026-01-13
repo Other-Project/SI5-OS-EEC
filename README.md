@@ -29,10 +29,10 @@ Do the following wiring:
 |   D5    |    LED     |                 |
 |   D6    |   Buzzer   |                 |
 |   D7    |    RFID    |                 |
-|   A0    |   Rotary   |                 |
-|   GND   |            |      GND        |
-|   A4    |            |  GPIO 2 (SDA)   |
-|   A5    |            |  GPIO 3 (SCL)   |
+|         |   Rotary   |       A0        |
+|         |   Button   |       D2        |
+|         |   Screen   |      I2C-2      |
+|   I2C   |            |      I2C-1      |
 
 ## Installation
 
