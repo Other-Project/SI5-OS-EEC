@@ -64,7 +64,6 @@ impl ArduinoI2C {
     fn get_events(&mut self) -> (bool, bool, bool) {
         if let Some(status) = self.read_register(REG_EVENTS) {
             let btn = (status & EVENT_BTN_PRESSED) != 0;
-            println!("bouton status: {}", btn);
             let motion = (status & EVENT_MOTION_DETECTED) != 0;
             let rfid = (status & EVENT_RFID_READ) != 0;
             return (btn, motion, rfid);

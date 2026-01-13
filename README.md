@@ -47,7 +47,7 @@ Ce système comprend :
 ### Arduino
 
 1. Connect the Arduino to your computer
-2. Build and flash the Arduino using `make upload`
+2. Build and flash the Arduino using `make -C arduino upload`
 
 ### Raspberry Pi 3B
 
@@ -55,5 +55,5 @@ Ce système comprend :
 2. Install i2c-tools using `sudo apt install i2c-tools`
 3. Configure I2C using `sudo raspi-config` (Interface Options -> I2C)
 4. Check for I2C connection with `i2cdetect -y 1`
-5. On your computer, build and deploy the rust code using `make -C rasp deploy`
+5. On your computer, build and deploy the rust code using `make -C raspberry deploy`
 6. Launch the program on the Raspberry Pi 3B using `./arduino_i2c`

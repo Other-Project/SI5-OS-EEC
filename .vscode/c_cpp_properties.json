@@ -3,9 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/arduinoLibsAndCore/**",
-                "${workspaceFolder}/FreeRTOS-Kernel/**",
-                "FreeRTOS-Kernel/portable/GCC/ATMega328/"
+                "${workspaceFolder}/arduino/arduinoLibsAndCore/**",
+                "${workspaceFolder}/arduino/FreeRTOS-Kernel/**",
+                "${workspaceFolder}/arduino/FreeRTOS-Kernel/portable/GCC/ATMega328/"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/avr-g++",

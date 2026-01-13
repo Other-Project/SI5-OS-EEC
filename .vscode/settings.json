@@ -1,5 +1,5 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./rasp/Cargo.toml",
+        "./raspberry/Cargo.toml",
     ]
 }
