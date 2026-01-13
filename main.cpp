@@ -161,13 +161,12 @@ static void vReadRfid(void *pvParameters)
 
 static void vButtonTask(void *pvParameters)
 {
-    TickType_t xLastWakeUpTime = xTaskGetTickCount();
     while (1)
     {
         setEventFlag(EVENT_BTN_PRESSED, false);
         if (button.waitForPress())
             setEventFlag(EVENT_BTN_PRESSED, true);
-        vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 
