@@ -10,6 +10,12 @@
 #include "drivers/rotary_angle/rotary_angle.h"
 #include "drivers/i2c/i2c.h"
 #include "consts.h"
+#include <event_groups.h>
+
+// Event group
+EventGroupHandle_t xSystemStateGroup;
+#define BIT_BLINK_ENABLE (1 << 0)
+#define BIT_ULTRASONIC_ENABLE (1 << 1)
 
 // Tasks
 static void vUltrasonicTask(void *pvParameters);
@@ -39,26 +45,27 @@ void setEventFlag(uint8_t event, bool enable)
 
 void onStatusChange(uint8_t newStatus)
 {
+    xEventGroupClearBits(xSystemStateGroup, BIT_BLINK_ENABLE | BIT_ULTRASONIC_ENABLE);
+
     switch (newStatus)
     {
     case STATUS_DISARMED:
-        vTaskSuspend(xBlinkHandle);
         led.off();
         buzzer.off();
-        vTaskSuspend(xUltrasonicHandle);
         break;
+
     case STATUS_ARMED:
-        vTaskSuspend(xBlinkHandle);
+        xEventGroupSetBits(xSystemStateGroup, BIT_ULTRASONIC_ENABLE);
         led.on();
         buzzer.off();
-        vTaskResume(xUltrasonicHandle);
         break;
+
     case STATUS_TRIGGERED:
+        xEventGroupSetBits(xSystemStateGroup, BIT_BLINK_ENABLE);
         led.on();
         buzzer.on();
-        vTaskSuspend(xUltrasonicHandle);
-        vTaskResume(xBlinkHandle);
         break;
+
     default:
         break;
     }
@@ -98,14 +105,14 @@ int main(void)
     rfid.begin(9600);
     rotaryAngle.init();
 
+    // Create event group
+    xSystemStateGroup = xEventGroupCreate();
+
     // Create tasks
     xTaskCreate(vUltrasonicTask, "ultrasonic", configMINIMAL_STACK_SIZE, NULL, 1U, &xUltrasonicHandle);
     xTaskCreate(vBlinkTask, "blink", configMINIMAL_STACK_SIZE, NULL, 1U, &xBlinkHandle);
     xTaskCreate(vReadRfid, "rfid", configMINIMAL_STACK_SIZE, NULL, 1U, NULL);
     xTaskCreate(vButtonTask, "button", configMINIMAL_STACK_SIZE, NULL, 1U, NULL);
-
-    vTaskSuspend(xUltrasonicHandle);
-    vTaskSuspend(xBlinkHandle);
 
     // Start scheduler
     vTaskStartScheduler();
@@ -120,6 +127,9 @@ static void vUltrasonicTask(void *pvParameters)
 
     while (1)
     {
+        // Wait for BIT_ULTRASONIC_ENABLE to be set
+        xEventGroupWaitBits(xSystemStateGroup, BIT_ULTRASONIC_ENABLE, pdFALSE, pdFALSE, portMAX_DELAY);
+
         uint16_t distance_mm = ultrasonic.MeasureInMillimeters();
         uint16_t max_distance_mm = I2C_Protocol::getRegister(REG_ULTRASONIC_DISTANCE) * 5;
         bool motion = distance_mm > max_distance_mm;
@@ -175,8 +185,12 @@ static void vButtonTask(void *pvParameters)
 static void vBlinkTask(void *pvParameters)
 {
     TickType_t xLastWakeUpTime = xTaskGetTickCount();
+
     while (1)
     {
+        // Wait for BIT_BLINK_ENABLE to be set
+        xEventGroupWaitBits(xSystemStateGroup, BIT_BLINK_ENABLE, pdFALSE, pdFALSE, portMAX_DELAY);
+
         led.toggle();
         buzzer.toggle();
         vTaskDelayUntil(&xLastWakeUpTime, 500 / portTICK_PERIOD_MS);

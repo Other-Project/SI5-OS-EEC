@@ -53,6 +53,7 @@ C_SOURCES := \
     $(FREERTOS_DIR)/queue.c \
     $(FREERTOS_DIR)/list.c \
     $(FREERTOS_DIR)/croutine.c \
+    $(FREERTOS_DIR)/event_groups.c \
     $(FREERTOS_MEM_DIR)/heap_1.c \
     $(FREERTOS_PORT_DIR)/port.c \
     $(ARDUINO_LIBS_DIR)/Wire/src/utility/twi.c
