@@ -1,5 +1,7 @@
 #include "i2c.h"
 #include <string.h>
+#include "FreeRTOS.h"
+#include <task.h>
 
 // Global variables for the protocol
 static volatile uint8_t g_registers[I2C_NUM_REGISTERS];
@@ -22,15 +24,22 @@ void I2C_Protocol::init(uint8_t slave_address)
 
 void I2C_Protocol::setRegister(uint8_t reg, uint8_t value)
 {
-    if (reg < I2C_NUM_REGISTERS)
+    if (reg < I2C_NUM_REGISTERS) {
+        taskENTER_CRITICAL();
         g_registers[reg] = value;
+        taskEXIT_CRITICAL();
+    }
 }
 
 uint8_t I2C_Protocol::getRegister(uint8_t reg)
 {
-    if (reg < I2C_NUM_REGISTERS)
-        return g_registers[reg];
-    return 0;
+    uint8_t value = 0;
+    if (reg < I2C_NUM_REGISTERS) {
+        taskENTER_CRITICAL();
+        value = g_registers[reg];
+        taskEXIT_CRITICAL();
+    }
+    return value;
 }
 
 void I2C_Protocol::registerCallback(I2CCallback callback)
