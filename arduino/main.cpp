@@ -132,11 +132,6 @@ static void vUltrasonicTask(void *pvParameters)
         uint16_t max_distance_mm = I2C_Protocol::getRegister(REG_ULTRASONIC_DISTANCE) * 5;
         bool motion = distance_mm > max_distance_mm;
         setEventFlag(EVENT_MOTION_DETECTED, motion);
-        if (motion)
-        {
-            I2C_Protocol::setRegister(REG_STATUS, STATUS_TRIGGERED);
-            onStatusChange(STATUS_TRIGGERED);
-        }
         vTaskDelayUntil(&xLastWakeUpTime, 200 / portTICK_PERIOD_MS);
     }
 }
