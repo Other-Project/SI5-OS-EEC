@@ -1,59 +1,64 @@
 #include "button.h"
-#include <avr/interrupt.h>
 
-// Pointeurs globaux pour retrouver nos objets Bouton depuis les interruptions
-static Button* btnOnPin2 = nullptr;
-static Button* btnOnPin3 = nullptr;
-
-Button::Button(uint8_t pin) {
-    _pin = pin;
-    _semaphore = NULL;
-    _lastPressTime = 0;
+Button::Button(volatile uint8_t* pinPort, volatile uint8_t* ddrPort, volatile uint8_t* portReg, uint8_t pinMask)
+    : _pinReg(pinPort), _ddrReg(ddrPort), _portReg(portReg), _pinMask(pinMask),
+      _pressSignal(nullptr), _history(0), _isPressed(false) {
 }
 
 void Button::init() {
-    // Création du sémaphore FreeRTOS
-    if (_semaphore == NULL) _semaphore = xSemaphoreCreateBinary();
-    if (_pin == 2) {
-        btnOnPin2 = this;           
-        DDRD &= ~(1 << DDD2);      
-        PORTD |= (1 << PORTD2); 
-        EICRA |= (1 << ISC01);
-        EIMSK |= (1 << INT0);
-    } 
-    else if (_pin == 3) {
-        btnOnPin3 = this;
-        DDRD &= ~(1 << DDD3);
-        PORTD |= (1 << PORTD3);
-        EICRA |= (1 << ISC11);
-        EIMSK |= (1 << INT1);
+    // Configure as input with pull-up
+    if (_ddrReg && _portReg) {
+        *_ddrReg &= ~_pinMask;
+        *_portReg |= _pinMask;
     }
+
+    _pressSignal = xSemaphoreCreateBinary();
+
+    xTaskCreate(
+        pollTask,
+        "BtnPoll",
+        128,
+        this,
+        tskIDLE_PRIORITY + 1,
+        nullptr
+    );
 }
 
 bool Button::waitForPress(TickType_t timeout) {
-    if (_semaphore == NULL) return false;
-    return xSemaphoreTake(_semaphore, timeout);
+    if (_pressSignal == nullptr) return false;
+    return (xSemaphoreTake(_pressSignal, timeout) == pdTRUE);
 }
 
-void Button::_isrHandler() {
-    // Anti-rebond simple (200ms)
-    TickType_t now = xTaskGetTickCountFromISR();
-    if ((now - _lastPressTime) > pdMS_TO_TICKS(200)) {
-        _lastPressTime = now;
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        xSemaphoreGiveFromISR(_semaphore, &xHigherPriorityTaskWoken);
-        if (xHigherPriorityTaskWoken) taskYIELD();
+bool Button::isPressed() const {
+    return _isPressed;
+}
+
+void Button::pollTask(void* pvParameters) {
+    Button* self = static_cast<Button*>(pvParameters);
+    const TickType_t xFrequency = pdMS_TO_TICKS(10);
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+
+    for (;;) {
+        // Active-low: 0 = Pressed, 1 = Released
+        bool rawState = !(*self->_pinReg & self->_pinMask);
+
+        // Debounce: keep history of last 8 polls
+        self->_history = (self->_history << 1) | (rawState ? 1 : 0);
+
+        // Pressed if last 4 reads were 1
+        bool stablePressed = (self->_history & 0x0F) == 0x0F;
+        bool stableReleased = (self->_history & 0x0F) == 0x00;
+
+        if (stablePressed && !self->_isPressed) {
+            self->_isPressed = true;
+            if (self->_pressSignal != nullptr) {
+                xSemaphoreGive(self->_pressSignal);
+            }
+        }
+        else if (stableReleased && self->_isPressed) {
+            self->_isPressed = false;
+        }
+
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
-}
-
-// --- Les Interruptions Système (ISR) ---
-
-// Interruption pour la Pin 2
-ISR(INT0_vect) {
-    if (btnOnPin2) btnOnPin2->_isrHandler();
-}
-
-// Interruption pour la Pin 3
-ISR(INT1_vect) {
-    if (btnOnPin3) btnOnPin3->_isrHandler();
 }
