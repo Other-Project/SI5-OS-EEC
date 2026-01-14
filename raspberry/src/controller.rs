@@ -52,10 +52,10 @@ impl AlarmController {
                 SecurityState::Disarmed => {
                     self.current_state = SecurityState::Armed;
                     generated_msg = Some("🛑 Armed via Button".to_string());
+                    state_changed = true;
                 }
                 _ => {}
             }
-            state_changed = true;
         }
 
         // RFID
