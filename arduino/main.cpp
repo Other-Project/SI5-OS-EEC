@@ -30,7 +30,7 @@ static TaskHandle_t xBlinkHandle = NULL;
 static RFID_Reader rfid(7, 8);
 static Buzzer buzzer(&DDRD, &PORTD, _BV(PD6));
 static Buzzer led(&DDRD, &PORTD, _BV(PD5));
-static Button button(2);
+//static Button button(2);
 
 void setEventFlag(uint8_t event, bool enable)
 {
@@ -100,7 +100,7 @@ int main(void)
     // Initialize peripherals
     led.init();
     buzzer.init();
-    button.init();
+    //button.init();
     rfid.begin(9600);
 
     // Create event group
@@ -173,9 +173,8 @@ static void vButtonTask(void *pvParameters)
 {
     while (1)
     {
-        setEventFlag(EVENT_BTN_PRESSED, false);
-        if (button.waitForPress())
-            setEventFlag(EVENT_BTN_PRESSED, true);
+        uint8_t pressed = (PIND & (1 << PIND2)) != 0;
+        setEventFlag(EVENT_BTN_PRESSED, pressed);
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
