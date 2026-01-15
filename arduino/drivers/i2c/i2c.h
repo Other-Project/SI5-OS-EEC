@@ -23,7 +23,7 @@ public:
      * @param reg Register number
      * @param value Value to write
      */
-    static void setRegister(uint8_t reg, uint8_t value);
+    static bool setRegister(uint8_t reg, uint8_t value);
     
     /**
      * Read the value of a register

@@ -22,9 +22,10 @@ void I2C_Protocol::init(uint8_t slave_address)
     Wire.onRequest(onRequestHandler);
 }
 
-void I2C_Protocol::setRegister(uint8_t reg, uint8_t value)
+bool I2C_Protocol::setRegister(uint8_t reg, uint8_t value)
 {
-    if (reg < I2C_NUM_REGISTERS) {
+    if (reg < I2C_NUM_REGISTERS)
+    {
         taskENTER_CRITICAL();
         g_registers[reg] = value;
         taskEXIT_CRITICAL();
@@ -34,7 +35,8 @@ void I2C_Protocol::setRegister(uint8_t reg, uint8_t value)
 uint8_t I2C_Protocol::getRegister(uint8_t reg)
 {
     uint8_t value = 0;
-    if (reg < I2C_NUM_REGISTERS) {
+    if (reg < I2C_NUM_REGISTERS)
+    {
         taskENTER_CRITICAL();
         value = g_registers[reg];
         taskEXIT_CRITICAL();
@@ -60,19 +62,10 @@ void I2C_Protocol::onReceiveHandler(int numBytes)
     // Read data to write into consecutive registers
     while (numBytes > 0 && Wire.available())
     {
-        if (g_register_pointer < I2C_NUM_REGISTERS)
-        {
-            uint8_t value = Wire.read();
-            g_registers[g_register_pointer] = value;
-
-            // Call the callback if defined
-            if (g_register_callback != NULL)
-                g_register_callback(g_register_pointer, value);
-
-            g_register_pointer++;
-        }
-        else
-            Wire.read(); // Consume the byte even if it cannot be stored
+        uint8_t value = Wire.read();
+        if (I2C_Protocol::setRegister(g_register_pointer, value) && g_register_callback != NULL)
+            g_register_callback(g_register_pointer, value);
+        g_register_pointer++;
         numBytes--;
     }
 }
@@ -80,12 +73,5 @@ void I2C_Protocol::onReceiveHandler(int numBytes)
 // Handler called when the Master (Raspberry Pi) requests data
 void I2C_Protocol::onRequestHandler()
 {
-    // Send the value of the pointed register
-    if (g_register_pointer < I2C_NUM_REGISTERS)
-    {
-        Wire.write(g_registers[g_register_pointer]);
-        g_register_pointer++;
-    }
-    else
-        Wire.write(0x00); // Send 0 if out of range
+    Wire.write(I2C_Protocol::getRegister(g_register_pointer++));
 }
