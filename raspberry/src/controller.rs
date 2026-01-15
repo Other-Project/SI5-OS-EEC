@@ -30,6 +30,7 @@ impl AlarmController {
     }
 
     pub fn poll(&mut self) -> Result<()> {
+        self.current_state = self.arduino.get_system_state()?;
         let events = self.arduino.get_events()?;
         self.last_events = events.clone();
         let mut new_state = None;

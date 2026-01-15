@@ -16,7 +16,6 @@ use crossterm::{
 use crate::controller::AlarmController;
 use crate::tui_logger::{init_logger, LOG_BUFFER};
 
-
 mod arduino;
 mod arduino_consts;
 mod controller;
@@ -24,7 +23,7 @@ mod tui_logger;
 
 fn main() -> Result<()> {
     init_logger().ok();
-    
+
     // setup terminal
     enable_raw_mode()?;
     execute!(io::stdout(), EnterAlternateScreen)?;
@@ -33,9 +32,8 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let mut controller = AlarmController::new()?;
-
     let res = (|| -> Result<()> {
+        let mut controller = AlarmController::new()?;
         loop {
             // check keyboard events (non-blocking)
             if event::poll(Duration::from_millis(0))? {

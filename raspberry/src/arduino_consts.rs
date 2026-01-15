@@ -16,6 +16,19 @@ pub enum SecurityState {
     Triggered = 2,
 }
 
+impl TryFrom<u8> for SecurityState {
+    fn try_from(val: u8) -> Result<Self, String> {
+        match val {
+            0 => Ok(SecurityState::Disarmed),
+            1 => Ok(SecurityState::Armed),
+            2 => Ok(SecurityState::Triggered),
+            _ => Err(format!("Invalid security state value: {}", val)),
+        }
+    }
+    
+    type Error = String;
+}
+
 bitflags! {
     #[derive(Clone, Copy)]
     pub struct Events: u8 {

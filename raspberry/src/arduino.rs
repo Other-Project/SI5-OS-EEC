@@ -13,7 +13,9 @@ impl ArduinoI2C {
     pub fn new(i2c_slave_addr: u16) -> Result<Self> {
         let mut bus = I2c::new()?;
         bus.set_slave_address(i2c_slave_addr)?;
-        Ok(Self { bus: Mutex::new(bus) })
+        Ok(Self {
+            bus: Mutex::new(bus),
+        })
     }
 
     fn write_register(&mut self, reg: Register, value: u8) -> Result<()> {
@@ -62,6 +64,11 @@ impl ArduinoI2C {
         } else {
             Ok(values.to_vec())
         }
+    }
+
+    pub fn get_system_state(&mut self) -> Result<SecurityState> {
+        let val = self.read_register(Register::Status)?;
+        SecurityState::try_from(val).map_err(anyhow::Error::msg)
     }
 
     pub fn set_system_state(&mut self, state: SecurityState) -> Result<()> {
