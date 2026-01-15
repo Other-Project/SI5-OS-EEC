@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 
 #[allow(unused)]
+#[derive(Debug, Clone, Copy)]
 pub enum Register {
     Status = 0x00,
     Events = 0x01,

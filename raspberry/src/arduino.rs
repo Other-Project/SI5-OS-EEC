@@ -15,50 +15,54 @@ impl ArduinoI2C {
         Ok(Self { bus })
     }
 
-    fn write_register(&mut self, reg: Register, value: u8) -> bool {
+    fn write_register(&mut self, reg: Register, value: u8) -> Result<()> {
         let buf = [reg as u8, value];
-        self.bus.write(&buf).is_ok()
+        self.bus.write(&buf)?;
+        Ok(())
     }
 
-    fn read_register(&mut self, reg: Register) -> Option<u8> {
-        self.read_registers(reg, 1).and_then(|vals| vals.get(0).cloned())
+    fn read_register(&mut self, reg: Register) -> Result<u8> {
+        self.read_registers(reg, 1).map(|vals| {
+            vals.get(0)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("No data"))
+        })?
     }
 
-   fn read_registers(&mut self, start_reg: Register, count: u8) -> Option<Vec<u8>> {
-    self.bus.write(&[start_reg as u8 | READ_FLAG, count]).or_else(|e| { println!("Err: {}", e); Err(e) }).ok()?; // Request read
+    fn read_registers(&mut self, start_reg: Register, count: u8) -> Result<Vec<u8>> {
+        self.bus.write(&[start_reg as u8 | READ_FLAG, count])?; // Request read
 
-    let mut buf = vec![0u8; count as usize + 1]; // +1 for checksum
-    self.bus.read(&mut buf).ok()?;
+        let mut buf = vec![0u8; count as usize + 1]; // +1 for checksum
+        self.bus.read(&mut buf)?;
 
-    let (values, checksum_byte) = buf.split_at(count as usize);
-    let received_checksum = checksum_byte[0];
-    let computed_checksum: u8 = values.iter().fold(0u16, |acc, &b| acc + b as u16) as u8;
+        let (values, checksum_byte) = buf.split_at(count as usize);
+        let received_checksum = checksum_byte[0];
+        let computed_checksum: u8 = values.iter().fold(0u16, |acc, &b| acc + b as u16) as u8;
 
-    if computed_checksum != received_checksum {
-        None
-    } else {
-        Some(values.to_vec())
+        if computed_checksum != received_checksum {
+            Err(anyhow::anyhow!(
+                "Checksum mismatch for register {:?}: computed {}, received {}",
+                start_reg,
+                computed_checksum,
+                received_checksum
+            ))
+        } else {
+            Ok(values.to_vec())
+        }
     }
-}
 
-    pub fn set_system_state(&mut self, state: SecurityState) {
-        self.write_register(Register::Status, state as u8);
+    pub fn set_system_state(&mut self, state: SecurityState) -> Result<()> {
+        self.write_register(Register::Status, state as u8)
     }
 
-    pub fn get_events(&mut self) -> Events {
+    pub fn get_events(&mut self) -> Result<Events> {
         self.read_register(Register::Events)
             .map(Events::from_bits_truncate)
-            .unwrap_or_else(Events::empty)
     }
 
-    pub fn read_rfid_uid(&mut self) -> Option<String> {
-        if let Some(values) = self.read_registers(Register::Rfid, 6) {
-            let hex: String = values.iter().map(|b| format!("{:02X}", b)).collect();
-            if hex == "000000000000" {
-                return None;
-            }
-            return Some(hex);
-        }
-        None
+    pub fn read_rfid_uid(&mut self) -> Result<String> {
+        let values = self.read_registers(Register::Rfid, 6)?;
+        let hex: String = values.iter().map(|b| format!("{:02X}", b)).collect();
+        Ok(hex)
     }
 }

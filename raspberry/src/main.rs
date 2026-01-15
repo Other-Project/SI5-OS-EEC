@@ -15,11 +15,55 @@ use crossterm::{
 
 use crate::controller::AlarmController;
 
+// --- Add imports for logging ---
+use log::{Record, Level, Metadata, SetLoggerError, LevelFilter};
+use std::sync::{Mutex, Arc};
+use lazy_static::lazy_static;
+
+// --- Add static buffer for log messages ---
+lazy_static! {
+    static ref LOG_BUFFER: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+}
+
+// --- Logger implementation ---
+struct TuiLogger;
+
+impl log::Log for TuiLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= Level::Info // Change as needed
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            let msg = format!("[{}] {}", record.level(), record.args());
+            let mut buf = LOG_BUFFER.lock().unwrap();
+            buf.push(msg);
+            // Limit buffer size
+            if buf.len() > 100 {
+                buf.remove(0);
+            }
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+static LOGGER: TuiLogger = TuiLogger;
+
+// --- Logger initialization function ---
+fn init_logger() -> Result<(), SetLoggerError> {
+    log::set_logger(&LOGGER)
+        .map(|()| log::set_max_level(LevelFilter::Info))
+}
+
 mod arduino;
 mod arduino_consts;
 mod controller;
 
 fn main() -> Result<()> {
+    // --- Initialize logger ---
+    init_logger().ok();
+
     // setup terminal
     enable_raw_mode()?;
     execute!(io::stdout(), EnterAlternateScreen)?;
@@ -42,7 +86,9 @@ fn main() -> Result<()> {
                 }
             }
 
-            controller.poll()?;
+            if let Err(e) = controller.poll() {
+                log::error!("{}", e);
+            }
 
             terminal.draw(|f| {
                 let size = f.size();
@@ -91,14 +137,18 @@ fn main() -> Result<()> {
                     .style(Style::default().fg(Color::White));
                 f.render_widget(mid_par, monitor_cols[3]);
 
-                let history_block = Block::default().title("History").borders(Borders::ALL);
-                let items: Vec<ListItem> = controller
-                    .last_messages()
-                    .iter()
-                    .map(|m| ListItem::new(m.clone()).style(Style::default()))
+                let logs_block = Block::default().title("Logs").borders(Borders::ALL);
+                let logs_height = lines[1].height.saturating_sub(2) as usize;
+                let log_lines: Vec<String> = {
+                    let buf = LOG_BUFFER.lock().unwrap();
+                    buf.iter().rev().take(logs_height).cloned().collect()
+                };
+                let items: Vec<ListItem> = log_lines
+                    .into_iter()
+                    .map(|m| ListItem::new(m).style(Style::default()))
                     .collect();
                 let list = List::new(items)
-                    .block(history_block)
+                    .block(logs_block)
                     .highlight_style(Style::default().add_modifier(Modifier::BOLD));
                 f.render_widget(list, lines[1]);
             })?;
