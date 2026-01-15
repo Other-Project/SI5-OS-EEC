@@ -14,56 +14,17 @@ use crossterm::{
 };
 
 use crate::controller::AlarmController;
+use crate::tui_logger::{init_logger, LOG_BUFFER};
 
-// --- Add imports for logging ---
-use log::{Record, Level, Metadata, SetLoggerError, LevelFilter};
-use std::sync::{Mutex, Arc};
-use lazy_static::lazy_static;
-
-// --- Add static buffer for log messages ---
-lazy_static! {
-    static ref LOG_BUFFER: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
-}
-
-// --- Logger implementation ---
-struct TuiLogger;
-
-impl log::Log for TuiLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Info // Change as needed
-    }
-
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            let msg = format!("[{}] {}", record.level(), record.args());
-            let mut buf = LOG_BUFFER.lock().unwrap();
-            buf.push(msg);
-            // Limit buffer size
-            if buf.len() > 100 {
-                buf.remove(0);
-            }
-        }
-    }
-
-    fn flush(&self) {}
-}
-
-static LOGGER: TuiLogger = TuiLogger;
-
-// --- Logger initialization function ---
-fn init_logger() -> Result<(), SetLoggerError> {
-    log::set_logger(&LOGGER)
-        .map(|()| log::set_max_level(LevelFilter::Info))
-}
 
 mod arduino;
 mod arduino_consts;
 mod controller;
+mod tui_logger;
 
 fn main() -> Result<()> {
-    // --- Initialize logger ---
     init_logger().ok();
-
+    
     // setup terminal
     enable_raw_mode()?;
     execute!(io::stdout(), EnterAlternateScreen)?;
