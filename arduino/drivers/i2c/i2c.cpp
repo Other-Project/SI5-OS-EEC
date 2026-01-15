@@ -85,14 +85,14 @@ void I2C_Protocol::onReceiveHandler(int numBytes)
 // Handler called when the Master (Raspberry Pi) requests data
 void I2C_Protocol::onRequestHandler()
 {
-    uint8_t checksum = 0;
-    while(g_read_count-- > 0)
+    uint16_t checksum = 0;
+    while (g_read_count-- > 0)
     {
         uint8_t value = I2C_Protocol::getRegister(g_register_pointer++);
         checksum += value;
         Wire.write(value);
     }
-    Wire.write(checksum);
+    Wire.write(checksum & 0xFF);
 
     // Reset state variables after read
     g_register_pointer = 0;
