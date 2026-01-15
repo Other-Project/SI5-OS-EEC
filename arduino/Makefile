@@ -123,6 +123,11 @@ upload: $(BUILD_DIR)/$(PROJECT).hex
 	           -P $(PORT) -b $(BAUD_RATE) \
 	           -U flash:w:$<
 
+.PHONY: sim
+sim: $(BUILD_DIR)/$(PROJECT).elf
+	@echo "Starting simulation..."
+	simavr -m atmega328p -f 16000000 -v -e $(BUILD_DIR)/$(PROJECT).elf
+
 # Clean build artifacts
 .PHONY: clean
 clean:
