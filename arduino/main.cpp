@@ -95,7 +95,7 @@ int main(void)
 
     // Set initial register values
     I2C_Protocol::setRegister(REG_STATUS, STATUS_DISARMED);
-    I2C_Protocol::setRegister(REG_ULTRASONIC_DISTANCE, 4); // 20 mm
+    I2C_Protocol::setRegister(REG_ULTRASONIC_DISTANCE, 8); // 40 mm
 
     // Initialize peripherals
     led.init();
