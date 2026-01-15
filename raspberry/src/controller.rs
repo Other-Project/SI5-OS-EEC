@@ -43,16 +43,14 @@ impl AlarmController {
     pub fn poll(&mut self) -> Result<()> {
         let events = self.arduino.get_events();
         self.last_events = events.clone();
-        let mut state_changed = false;
-        let mut generated_msg: Option<String> = None;
+        let mut new_state = None;
 
-        // armement
+        // Arming
         if events.contains(Events::BTN_PRESSED) {
             match self.current_state {
                 SecurityState::Disarmed => {
-                    self.current_state = SecurityState::Armed;
-                    generated_msg = Some("🛑 Armed via Button".to_string());
-                    state_changed = true;
+                    self.push_message("🛑 Armed via Button".to_string());
+                    new_state = Some(SecurityState::Armed);
                 }
                 _ => {}
             }
@@ -64,29 +62,24 @@ impl AlarmController {
                 self.last_rfid = Some(uid.clone());
                 if VALID_BADGES.contains(&uid.as_str()) {
                     if self.current_state != SecurityState::Disarmed {
-                        self.current_state = SecurityState::Disarmed;
-                        generated_msg = Some(format!("🟢 Disarmed via Badge {}", uid));
-                        state_changed = true;
+                        self.push_message(format!("🟢 Disarmed via Badge {}", uid));
+                        new_state = Some(SecurityState::Disarmed);
                     }
                 } else {
-                    generated_msg = Some(format!("⚠️ ACCESS DENIED: Unknown badge {}", uid));
+                    self.push_message(format!("⚠️ ACCESS DENIED: Unknown badge {}", uid));
                 }
             }
         }
 
-        // mouv detecté
+        // Motion detection
         if self.current_state == SecurityState::Armed && events.contains(Events::MOTION_DETECTED) {
-            self.current_state = SecurityState::Triggered;
-            generated_msg = Some("🚨 INTRUSION DETECTED! ALARM!".to_string());
-            state_changed = true;
+            self.push_message("🚨 INTRUSION DETECTED! ALARM!".to_string());
+            new_state = Some(SecurityState::Triggered);
         }
 
-        if state_changed {
+        if let Some(state) = new_state {
+            self.current_state = state;
             self.arduino.set_system_state(self.current_state);
-        }
-
-        if let Some(m) = generated_msg {
-            self.push_message(m);
         }
         Ok(())
     }
