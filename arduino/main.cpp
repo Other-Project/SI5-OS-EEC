@@ -173,6 +173,10 @@ static void vButtonTask(void *pvParameters)
     while (1)
     {
         setEventFlag(EVENT_BTN_PRESSED, button.isPressed());
+        if(button.isPressed()){
+            I2C_Protocol::setRegister(REG_STATUS, STATUS_ARMED);
+            onStatusChange(STATUS_ARMED);
+        }
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }

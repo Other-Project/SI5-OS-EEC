@@ -30,7 +30,14 @@ impl ArduinoI2C {
         buf.extend_from_slice(values);
 
         let mut bus = self.bus.lock().unwrap();
-        bus.write(&buf)?;
+        let write_count = bus.write(&buf)?;
+        if write_count != buf.len() {
+            return Err(anyhow::anyhow!(
+                "Expected to write {} bytes, but wrote {} bytes",
+                buf.len(),
+                write_count
+            ));
+        }
         Ok(())
     }
 
@@ -44,10 +51,26 @@ impl ArduinoI2C {
 
     fn read_registers(&mut self, start_reg: Register, count: u8) -> Result<Vec<u8>> {
         let mut bus = self.bus.lock().unwrap();
-        bus.write(&[start_reg as u8 | READ_FLAG, count])?; // Request read
+        let write_count = bus.write(&[start_reg as u8 | READ_FLAG, count])?; // Request read
+        if write_count != 2 {
+            return Err(anyhow::anyhow!(
+                "Expected to write 2 bytes, but wrote {} bytes",
+                write_count
+            ));
+        }
+
+        std::thread::sleep(std::time::Duration::from_micros(1000)); // Let Arduino prepare data
 
         let mut buf = vec![0u8; count as usize + 1]; // +1 for checksum
-        bus.read(&mut buf)?;
+        let read_count = bus.read(&mut buf)?;
+
+        if read_count != buf.len() {
+            return Err(anyhow::anyhow!(
+                "Expected to read {} bytes, but got {} bytes",
+                buf.len(),
+                read_count
+            ));
+        }
 
         let (values, checksum_byte) = buf.split_at(count as usize);
         let received_checksum = checksum_byte[0];
@@ -84,5 +107,9 @@ impl ArduinoI2C {
         let values = self.read_registers(Register::Rfid, 6)?;
         let hex: String = values.iter().map(|b| format!("{:02X}", b)).collect();
         Ok(hex)
+    }
+
+    pub fn get_all_registers(&mut self) -> Result<Vec<u8>> {
+        self.read_registers(Register::Status,  Register::UltrasonicDistance as u8 + 1)
     }
 }

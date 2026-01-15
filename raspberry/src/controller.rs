@@ -19,8 +19,8 @@ pub struct AlarmController {
 impl AlarmController {
     pub fn new() -> Result<Self> {
         let mut arduino = ArduinoI2C::new(I2C_SLAVE_ADDR)?;
-        let current_state = SecurityState::Disarmed;
-        arduino.set_system_state(current_state)?;
+        info!("Initial registers: {:?}", arduino.get_all_registers()?);
+        let current_state = arduino.get_system_state()?;
         Ok(Self {
             arduino,
             current_state,
