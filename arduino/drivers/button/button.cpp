@@ -68,6 +68,6 @@ void Button::pollTask(void *pvParameters)
             self->_isPressed = false;
         }
 
-        vTaskDelayUntil(&xLastWakeUpTime, 50 / portTICK_PERIOD_MS);
+        vTaskDelayUntil(&xLastWakeUpTime, 20 / portTICK_PERIOD_MS);
     }
 }

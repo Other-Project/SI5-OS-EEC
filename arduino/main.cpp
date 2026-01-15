@@ -100,7 +100,7 @@ int main(void)
     // Initialize peripherals
     led.init();
     buzzer.init();
-    button.init();
+     button.init();
     rfid.begin(9600);
 
     // Create event group
@@ -132,7 +132,7 @@ static void vUltrasonicTask(void *pvParameters)
         uint16_t max_distance_mm = I2C_Protocol::getRegister(REG_ULTRASONIC_DISTANCE) * 5;
         bool motion = distance_mm > max_distance_mm;
         setEventFlag(EVENT_MOTION_DETECTED, motion);
-        vTaskDelayUntil(&xLastWakeUpTime, 200 / portTICK_PERIOD_MS);
+        vTaskDelayUntil(&xLastWakeUpTime, 500 / portTICK_PERIOD_MS);
     }
 }
 
