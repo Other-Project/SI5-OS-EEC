@@ -168,9 +168,7 @@ static void vButtonTask(void *pvParameters)
 {
     while (1)
     {
-        setEventFlag(EVENT_BTN_PRESSED, false);
-        if (button.waitForPress())
-            setEventFlag(EVENT_BTN_PRESSED, true);
+        setEventFlag(EVENT_BTN_PRESSED, button.isPressed());
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
