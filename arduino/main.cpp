@@ -11,6 +11,7 @@
 #include "drivers/i2c/i2c.h"
 #include "consts.h"
 #include <event_groups.h>
+#include <HardwareSerial.h>
 
 // Event group
 EventGroupHandle_t xSystemStateGroup;
@@ -84,6 +85,9 @@ void onI2CCommand(uint8_t reg, uint8_t value)
 
 int main(void)
 {
+    Serial.begin(9600);
+    Serial.println("System starting...");
+
     // Initialize Wire (required before I2C_Protocol)
     Wire.begin();
 
@@ -100,7 +104,7 @@ int main(void)
     // Initialize peripherals
     led.init();
     buzzer.init();
-     button.init();
+    button.init();
     rfid.begin(9600);
 
     // Create event group

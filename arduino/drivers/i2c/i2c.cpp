@@ -2,6 +2,7 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #include <task.h>
+#include <HardwareSerial.h>
 
 #define READ_I2C() (numBytes--, Wire.read())
 #define READ_FLAG 0x80
@@ -36,6 +37,7 @@ void I2C_Protocol::setRegister(uint8_t reg, uint8_t value)
         g_registers[reg] = value;
         taskEXIT_CRITICAL();
     }
+    else Serial.println("I2C: Attempt to write to invalid register");
 }
 
 uint8_t I2C_Protocol::getRegister(uint8_t reg)
@@ -47,6 +49,7 @@ uint8_t I2C_Protocol::getRegister(uint8_t reg)
         value = g_registers[reg];
         taskEXIT_CRITICAL();
     }
+    else Serial.println("I2C: Attempt to read from invalid register");
     return value;
 }
 
@@ -58,8 +61,10 @@ void I2C_Protocol::registerCallback(I2CCallback callback)
 // Handler called when the Master (Raspberry Pi) writes data
 void I2C_Protocol::onReceiveHandler(int numBytes)
 {
-    if (numBytes < 2)
+    if (numBytes < 2){
+        Serial.println("I2C: Not enough data received");
         return;
+    }
 
     // Read register address (first byte)
     g_register_pointer = READ_I2C();
@@ -74,20 +79,24 @@ void I2C_Protocol::onReceiveHandler(int numBytes)
 
     uint8_t values[numBytes];
     uint16_t checksum = 0;
-    for (uint8_t i = 0; i < numBytes; i++)
+    for (uint8_t i = 0; numBytes > 0; i++)
     {
         values[i] = READ_I2C();
         checksum += values[i];
     }
-    if ((checksum & 0xFF) != value)
+
+    if ((checksum & 0xFF) != value){
+        Serial.println("I2C: Checksum mismatch");
         return; // Checksum mismatch, ignore the write
+    }
 
     // Write values to registers
-    for (uint8_t i = 0; i < numBytes; i++, g_register_pointer++)
+    for (uint8_t i = 0; i < sizeof(values); i++, g_register_pointer++)
     {
         I2C_Protocol::setRegister(g_register_pointer, values[i]);
+
         // Call the registered callback if any
-        if (g_register_callback)
+        if (g_register_callback != nullptr)
             g_register_callback(g_register_pointer, values[i]);
     }
 
