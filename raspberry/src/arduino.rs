@@ -17,7 +17,16 @@ impl ArduinoI2C {
     }
 
     fn write_register(&mut self, reg: Register, value: u8) -> Result<()> {
-        let buf = [reg as u8, value];
+        self.write_registers(reg, &[value])
+    }
+
+    fn write_registers(&mut self, start_reg: Register, values: &[u8]) -> Result<()> {
+        let checksum: u8 = values.iter().fold(0u16, |acc, &b| acc + b as u16) as u8;
+        let mut buf = Vec::with_capacity(2 + values.len() + 1);
+        buf.push(start_reg as u8 & !READ_FLAG);
+        buf.push(checksum);
+        buf.extend_from_slice(values);
+
         let mut bus = self.bus.lock().unwrap();
         bus.write(&buf)?;
         Ok(())

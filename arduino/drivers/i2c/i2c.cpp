@@ -72,10 +72,24 @@ void I2C_Protocol::onReceiveHandler(int numBytes)
         return;
     }
 
-    // Write value to the specified register
-    I2C_Protocol::setRegister(g_register_pointer, value);
-    if (g_register_callback)
-        g_register_callback(g_register_pointer, value);
+    uint8_t values[numBytes];
+    uint16_t checksum = 0;
+    for (uint8_t i = 0; i < numBytes; i++)
+    {
+        values[i] = READ_I2C();
+        checksum += values[i];
+    }
+    if ((checksum & 0xFF) != value)
+        return; // Checksum mismatch, ignore the write
+
+    // Write values to registers
+    for (uint8_t i = 0; i < numBytes; i++, g_register_pointer++)
+    {
+        I2C_Protocol::setRegister(g_register_pointer, values[i]);
+        // Call the registered callback if any
+        if (g_register_callback)
+            g_register_callback(g_register_pointer, values[i]);
+    }
 
     // Reset state variables
     g_register_pointer = 0;
