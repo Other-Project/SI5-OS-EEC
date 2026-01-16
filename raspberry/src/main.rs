@@ -27,6 +27,7 @@ mod badges;
 mod controller;
 mod lcd;
 mod menu;
+mod badge_menu;
 mod tui_logger;
 
 #[derive(Parser, Debug)]
