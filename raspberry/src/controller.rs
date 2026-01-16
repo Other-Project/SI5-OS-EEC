@@ -5,6 +5,7 @@ use log::info;
 use crate::arduino::ArduinoI2C;
 use crate::arduino_consts::Events;
 use crate::arduino_consts::SecurityState;
+use crate::lcd::GroveLcd;
 
 // Config
 const I2C_SLAVE_ADDR: u16 = 0x32;
@@ -12,6 +13,7 @@ pub const VALID_BADGES: &[&str] = &["01056DE7D658"];
 
 pub struct AlarmController {
     arduino: ArduinoI2C,
+    screen: GroveLcd,
     current_state: SecurityState,
     last_events: Events,
     last_rfid: Option<String>,
@@ -22,8 +24,17 @@ impl AlarmController {
         let mut arduino = ArduinoI2C::new(I2C_SLAVE_ADDR)?;
         debug!("Initial registers: {:?}", arduino.get_all_registers()?);
         let current_state = arduino.get_system_state()?;
+
+        let screen = GroveLcd::new()?;
+        screen.clear()?;
+        screen.set_cursor(0, 0)?;
+        screen.print("Systeme Actif")?;
+        screen.set_cursor(0, 1)?;
+        screen.print("Initialisation..")?;
+
         Ok(Self {
             arduino,
+            screen,
             current_state,
             last_events: Events::empty(),
             last_rfid: None,
@@ -69,6 +80,14 @@ impl AlarmController {
                 self.arduino.set_system_state(self.current_state)?;
             }
         }
+
+        if old_state != self.current_state {
+            self.screen.clear()?;
+            self.screen.set_cursor(0, 0)?;
+            self.screen
+                .print(format!("{:?}", self.current_state).as_str())?;
+        }
+        
         Ok(())
     }
 

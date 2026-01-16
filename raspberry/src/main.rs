@@ -18,6 +18,7 @@ use crate::tui_logger::{init_logger, LOG_BUFFER};
 
 mod arduino;
 mod arduino_consts;
+mod lcd;
 mod controller;
 mod tui_logger;
 
