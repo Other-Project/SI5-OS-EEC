@@ -2,77 +2,61 @@ use anyhow::Result;
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 
-use crate::badge_menu::BadgeMenu;
-use crate::controller::AlarmController;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum MainTab {
-    Logs,
-    Badges,
-}
-
 pub struct Menu {
-    pub main_tab: MainTab,
-    pub badge_menu: BadgeMenu,
+    pub current_tab: usize,
+    pub tabs: Vec<Box<dyn TuiMenuTrait>>,
 }
 
 impl Menu {
-    pub fn new() -> Self {
+    pub fn new(tabs: Vec<Box<dyn TuiMenuTrait>>) -> Self {
         Self {
-            main_tab: MainTab::Logs,
-            badge_menu: BadgeMenu::new(),
+            current_tab: 0,
+            tabs,
         }
     }
 
-    pub fn handle_key(
-        &mut self,
-        key: KeyCode,
-        controller: &mut AlarmController,
-    ) -> Result<Option<String>> {
+    fn get_current_tab_mut(&mut self) -> &mut dyn TuiMenuTrait {
+        self.tabs[self.current_tab].as_mut()
+    }
+    fn get_current_tab_ref(&self) -> &dyn TuiMenuTrait {
+        self.tabs[self.current_tab].as_ref()
+    }
+
+    pub fn handle_key(&mut self, key: KeyCode) -> Result<bool> {
+        let handled = self.get_current_tab_mut().handle_key(key)?;
+        if handled {
+            return Ok(false);
+        }
+
         match key {
-            KeyCode::Tab if self.badge_menu.badge_field.is_none() => {
-                self.main_tab = match self.main_tab {
-                    MainTab::Logs => {
-                        self.badge_menu.reset(controller)?;
-                        MainTab::Badges
-                    }
-                    MainTab::Badges => MainTab::Logs,
-                };
-                return Ok(None);
+            KeyCode::Tab => {
+                self.current_tab = (self.current_tab + 1) % self.tabs.len();
+                self.get_current_tab_mut().reset()?;
+                return Ok(false);
             }
-            KeyCode::Char('q') | KeyCode::Char('Q') if self.badge_menu.badge_field.is_none() => {
-                return Ok(Some("quit".to_string()));
-            }
-            _ => {}
+            KeyCode::Char('q') | KeyCode::Char('Q') => return Ok(true),
+            _ => Ok(false),
         }
-
-        if self.main_tab == MainTab::Badges {
-            return self.badge_menu.handle_key(key, controller);
-        }
-
-        Ok(None)
     }
 
-    pub fn poll(&mut self, controller: &mut AlarmController) -> Result<()> {
-        if self.main_tab == MainTab::Badges {
-            self.badge_menu.poll(controller)?;
-        }
+    pub fn poll(&mut self) -> Result<()> {
+        self.get_current_tab_mut().poll()?;
         Ok(())
     }
 
     pub fn get_bottom_help(&self) -> String {
-        if self.main_tab == MainTab::Badges {
-            self.badge_menu.get_bottom_help()
-        } else {
-            "[TAB] Switch Tab  [Q] Quit".to_string()
-        }
+        self.get_current_tab_ref().key_help().unwrap_or(" [TAB] Switch Tab  [Q] Quit ".to_string())
     }
 
     pub fn render(&self, f: &mut Frame, area: ratatui::layout::Rect) {
-        if self.main_tab == MainTab::Badges {
-            self.badge_menu.render(f, area);
-        } else {
-            // ...existing code for rendering logs or other tabs...
-        }
+        self.get_current_tab_ref().render(f, area);
     }
+}
+
+pub trait TuiMenuTrait {
+    fn reset(&mut self) -> Result<()>;
+    fn render(&self, f: &mut Frame, area: ratatui::layout::Rect);
+    fn poll(&mut self) -> Result<()>;
+    fn key_help(&self) -> Option<String>;
+    fn handle_key(&mut self, key: KeyCode) -> Result<bool>;
 }

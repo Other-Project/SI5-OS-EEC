@@ -6,9 +6,12 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use ratatui::Frame;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::badges::Badge;
 use crate::controller::AlarmController;
+use crate::menu::TuiMenuTrait;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BadgeTab {
@@ -26,6 +29,7 @@ pub struct BadgeField {
 }
 
 pub struct BadgeMenu {
+    pub controller: Rc<RefCell<AlarmController>>,
     pub badge_tab: BadgeTab,
     pub selected_item: usize,
     pub max_items: usize,
@@ -36,8 +40,9 @@ pub struct BadgeMenu {
 }
 
 impl BadgeMenu {
-    pub fn new() -> Self {
+    pub fn new(controller: Rc<RefCell<AlarmController>>) -> Self {
         Self {
+            controller,
             badge_tab: BadgeTab::ListBadges,
             selected_item: 0,
             max_items: 0,
@@ -48,47 +53,14 @@ impl BadgeMenu {
         }
     }
 
-    pub fn reset(&mut self, controller: &AlarmController) -> Result<()> {
-        self.badge_tab = BadgeTab::ListBadges;
-        self.selected_item = 0;
-        self.last_badge_uid = None;
-        self.message = None;
-        self.badge_field = None;
-        self.load_badges_with_status(controller)
-    }
-
-    fn load_badges_with_status(&mut self, controller: &AlarmController) -> Result<()> {
-        self.badges_list = controller.badge_manager().get_all_badges()?;
+    fn load_badges_with_status(&mut self) -> Result<()> {
+        self.badges_list = self.controller.borrow_mut().badge_manager().get_all_badges()?;
         self.max_items = self.badges_list.len().max(1);
         Ok(())
     }
 
-    pub fn handle_key(
-        &mut self,
-        key: KeyCode,
-        controller: &mut AlarmController,
-    ) -> Result<Option<String>> {
-        if let Some(field) = self.badge_field.clone() {
-            return self.handle_badge_field_input(key, &field, controller);
-        }
-
-        match self.badge_tab {
-            BadgeTab::AddBadge => self.handle_add_badge_keys(key, controller),
-            BadgeTab::RemoveBadge => self.handle_remove_badge_keys(key, controller),
-            BadgeTab::ListBadges => self.handle_list_badges(key, controller),
-        }
-    }
-
-    pub fn poll(&mut self, controller: &mut AlarmController) -> Result<()> {
-        match self.badge_tab {
-            BadgeTab::AddBadge => self.check_add_badge_scan(controller)?,
-            BadgeTab::RemoveBadge => self.check_remove_badge_scan(controller)?,
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn check_add_badge_scan(&mut self, controller: &mut AlarmController) -> Result<()> {
+    fn check_add_badge_scan(&mut self) -> Result<()> {
+        let controller = self.controller.borrow();
         if let Some(scanned_uid) = controller.get_last_rfid() {
             if self.last_badge_uid.as_deref() != Some(scanned_uid) {
                 self.last_badge_uid = Some(scanned_uid.to_string());
@@ -104,12 +76,14 @@ impl BadgeMenu {
         Ok(())
     }
 
-    fn check_remove_badge_scan(&mut self, controller: &mut AlarmController) -> Result<()> {
+    fn check_remove_badge_scan(&mut self) -> Result<()> {
+        let controller = self.controller.borrow();
         if let Some(scanned_uid) = controller.get_last_rfid() {
             if self.last_badge_uid.as_deref() != Some(scanned_uid) {
                 self.last_badge_uid = Some(scanned_uid.to_string());
-                if let Ok(Some(badge)) = controller.badge_manager().get_badge(scanned_uid) {
-                    controller.badge_manager().remove_badge(scanned_uid)?;
+                let controller_mut = self.controller.borrow_mut();
+                if let Ok(Some(badge)) = controller_mut.badge_manager().get_badge(scanned_uid) {
+                    controller_mut.badge_manager().remove_badge(scanned_uid)?;
                     self.message = Some(format!("Badge removed: {}", badge.name));
                 } else {
                     self.message = Some("Badge not found in database".to_string());
@@ -122,14 +96,13 @@ impl BadgeMenu {
     fn handle_add_badge_keys(
         &mut self,
         key: KeyCode,
-        controller: &mut AlarmController,
     ) -> Result<Option<String>> {
         match key {
             KeyCode::Esc => {
                 self.badge_tab = BadgeTab::ListBadges;
                 self.badge_field = None;
                 self.message = None;
-                self.load_badges_with_status(controller)?;
+                self.load_badges_with_status()?;
                 Ok(None)
             }
             _ => Ok(None),
@@ -139,14 +112,13 @@ impl BadgeMenu {
     fn handle_remove_badge_keys(
         &mut self,
         key: KeyCode,
-        controller: &mut AlarmController,
     ) -> Result<Option<String>> {
         match key {
             KeyCode::Esc => {
                 self.badge_tab = BadgeTab::ListBadges;
                 self.last_badge_uid = None;
                 self.message = None;
-                self.load_badges_with_status(controller)?;
+                self.load_badges_with_status()?;
                 Ok(None)
             }
             _ => Ok(None),
@@ -157,7 +129,6 @@ impl BadgeMenu {
         &mut self,
         key: KeyCode,
         field: &BadgeField,
-        controller: &mut AlarmController,
     ) -> Result<Option<String>> {
         match key {
             KeyCode::Down if field.selected_field < 1 => {
@@ -189,10 +160,10 @@ impl BadgeMenu {
                 }
             }
             KeyCode::Enter => {
-                return self.confirm_add_badge(field, controller);
+                return self.confirm_add_badge(field);
             }
             KeyCode::Esc => {
-                self.cancel_badge_operation(controller)?;
+                self.cancel_badge_operation()?;
             }
             _ => {}
         }
@@ -202,7 +173,6 @@ impl BadgeMenu {
     fn confirm_add_badge(
         &mut self,
         field: &BadgeField,
-        controller: &mut AlarmController,
     ) -> Result<Option<String>> {
         let expiry_date = if !field.expiry_days.is_empty() {
             field
@@ -214,25 +184,24 @@ impl BadgeMenu {
             None
         };
 
-        controller
+        self.controller.borrow_mut()
             .badge_manager()
             .add_badge_with_expiry(&field.uid, &field.name, expiry_date)?;
         self.message = Some(format!("Badge added: {} ({})", field.name, field.uid));
-        self.cancel_badge_operation(controller)?;
+        self.cancel_badge_operation()?;
         Ok(None)
     }
 
-    fn cancel_badge_operation(&mut self, controller: &AlarmController) -> Result<()> {
+    fn cancel_badge_operation(&mut self) -> Result<()> {
         self.badge_field = None;
         self.badge_tab = BadgeTab::ListBadges;
         self.message = None;
-        self.load_badges_with_status(controller)
+        self.load_badges_with_status()
     }
 
     fn handle_list_badges(
         &mut self,
         key: KeyCode,
-        controller: &mut AlarmController,
     ) -> Result<Option<String>> {
         match key {
             KeyCode::Up => {
@@ -254,8 +223,8 @@ impl BadgeMenu {
             }
             KeyCode::Char('d') | KeyCode::Char('D') => {
                 if let Some(badge) = self.badges_list.get(self.selected_item) {
-                    controller.badge_manager().remove_badge(&badge.uid)?;
-                    self.load_badges_with_status(controller)?;
+                    self.controller.borrow_mut().badge_manager().remove_badge(&badge.uid)?;
+                    self.load_badges_with_status()?;
                     if self.selected_item >= self.max_items {
                         self.selected_item = self.max_items.saturating_sub(1);
                     }
@@ -269,45 +238,20 @@ impl BadgeMenu {
             }
             KeyCode::Char('e') | KeyCode::Char('E') => {
                 if let Some(badge) = self.badges_list.get(self.selected_item) {
-                    let is_enabled = controller
+                    let is_enabled = self.controller.borrow()
                         .badge_manager()
                         .is_valid_badge(&badge.uid)
                         .unwrap_or(false);
                     if is_enabled {
-                        controller.badge_manager().disable_badge(&badge.uid)?;
+                        self.controller.borrow_mut().badge_manager().disable_badge(&badge.uid)?;
                     } else {
-                        controller.badge_manager().enable_badge(&badge.uid)?;
+                        self.controller.borrow_mut().badge_manager().enable_badge(&badge.uid)?;
                     }
-                    self.load_badges_with_status(controller)?;
+                    self.load_badges_with_status()?;
                 }
                 Ok(None)
             }
             _ => Ok(None),
-        }
-    }
-
-    pub fn get_bottom_help(&self) -> String {
-        match self.badge_tab {
-            BadgeTab::ListBadges => format!(
-                "[A] Add  [R] Remove by Scan {} [TAB] Switch Tab  [Q] Quit",
-                if self.badges_list.len() > 0 {
-                    " [D] Delete Selected  [E] Toggle Selected  [↑/↓] Navigate "
-                } else {
-                    ""
-                }
-            ),
-            BadgeTab::AddBadge if self.badge_field.is_some() => {
-                "[↑/↓] Navigate  [ENTER] Confirm  [ESC] Cancel".to_string()
-            }
-            BadgeTab::AddBadge | BadgeTab::RemoveBadge => "[ESC] Back".to_string(),
-        }
-    }
-
-    pub fn render(&self, f: &mut Frame, area: ratatui::layout::Rect) {
-        match self.badge_tab {
-            BadgeTab::ListBadges => self.render_list_badges(f, area),
-            BadgeTab::AddBadge => self.render_add_badge(f, area),
-            BadgeTab::RemoveBadge => self.render_remove_badge(f, area),
         }
     }
 
@@ -573,5 +517,65 @@ impl BadgeMenu {
                 .border_style(Style::default().fg(Color::DarkGray)),
         );
         f.render_widget(list, area);
+    }
+}
+
+// Implement TuiMenuTrait for BadgeMenu
+impl TuiMenuTrait for BadgeMenu {
+    fn reset(&mut self) -> anyhow::Result<()> {
+        self.badge_tab = BadgeTab::ListBadges;
+        self.selected_item = 0;
+        self.last_badge_uid = None;
+        self.message = None;
+        self.badge_field = None;
+        self.load_badges_with_status()
+    }
+
+    fn render(&self, f: &mut Frame, area: ratatui::layout::Rect) {
+        match self.badge_tab {
+            BadgeTab::ListBadges => self.render_list_badges(f, area),
+            BadgeTab::AddBadge => self.render_add_badge(f, area),
+            BadgeTab::RemoveBadge => self.render_remove_badge(f, area),
+        }
+    }
+
+    fn poll(&mut self) -> anyhow::Result<()> {
+        match self.badge_tab {
+            BadgeTab::AddBadge => self.check_add_badge_scan()?,
+            BadgeTab::RemoveBadge => self.check_remove_badge_scan()?,
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn key_help(&self) -> Option<String> {
+        Some(match self.badge_tab {
+            BadgeTab::ListBadges => format!(
+                "[A] Add  [R] Remove by Scan {} [TAB] Switch Tab  [Q] Quit",
+                if self.badges_list.len() > 0 {
+                    " [D] Delete Selected  [E] Toggle Selected  [↑/↓] Navigate "
+                } else {
+                    ""
+                }
+            ),
+            BadgeTab::AddBadge if self.badge_field.is_some() => {
+                "[↑/↓] Navigate  [ENTER] Confirm  [ESC] Cancel".to_string()
+            }
+            BadgeTab::AddBadge | BadgeTab::RemoveBadge => "[ESC] Back".to_string(),
+        })
+    }
+
+    fn handle_key(&mut self, key: KeyCode) -> anyhow::Result<bool> {
+        if let Some(field) = self.badge_field.clone() {
+            self.handle_badge_field_input(key, &field)?;
+            return Ok(false);
+        }
+
+        match self.badge_tab {
+            BadgeTab::AddBadge => { self.handle_add_badge_keys(key)?; }
+            BadgeTab::RemoveBadge => { self.handle_remove_badge_keys(key)?; }
+            BadgeTab::ListBadges => { self.handle_list_badges(key)?; }
+        }
+        Ok(self.badge_tab != BadgeTab::ListBadges)
     }
 }

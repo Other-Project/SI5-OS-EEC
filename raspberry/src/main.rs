@@ -4,10 +4,12 @@ use log::info;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Tabs};
+use ratatui::widgets::{Block, Borders, Paragraph, Tabs};
 use ratatui::{backend::CrosstermBackend, Frame, Terminal};
+use std::cell::RefCell;
 use std::io;
 use std::io::Write;
+use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
 
@@ -19,7 +21,8 @@ use crossterm::{
 
 use crate::controller::AlarmController;
 use crate::menu::Menu;
-use crate::tui_logger::{init_logger, LOG_BUFFER};
+use crate::{badge_menu::BadgeMenu, log_menu::LogMenu};
+use crate::tui_logger::init_logger;
 
 mod arduino;
 mod arduino_consts;
@@ -28,6 +31,7 @@ mod controller;
 mod lcd;
 mod menu;
 mod badge_menu;
+mod log_menu;
 mod tui_logger;
 
 #[derive(Parser, Debug)]
@@ -81,9 +85,12 @@ fn main() -> Result<()> {
 }
 
 fn run_app(terminal: &mut Option<Terminal<CrosstermBackend<io::Stdout>>>) -> Result<()> {
-    let mut controller = AlarmController::new()?;
+    let controller = Rc::new(RefCell::new(AlarmController::new()?));
     let mut menu = if terminal.is_some() {
-        Some(Menu::new())
+        Some(Menu::new(vec![
+            Box::new(LogMenu::new()),
+            Box::new(BadgeMenu::new(controller.clone())),
+        ]))
     } else {
         None
     };
@@ -92,28 +99,32 @@ fn run_app(terminal: &mut Option<Terminal<CrosstermBackend<io::Stdout>>>) -> Res
         if let Some(ref mut menu_instance) = menu {
             if event::poll(Duration::from_millis(0))? {
                 if let CEvent::Key(key) = event::read()? {
-                    if let Ok(Some(action)) = menu_instance.handle_key(key.code, &mut controller) {
-                        if action == "quit" {
-                            break;
+                    match menu_instance.handle_key(key.code) {
+                        Ok(should_quit) => {
+                            if should_quit {
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Menu key handling error: {}", e);
                         }
                     }
                 }
             }
         }
 
-        controller
+        controller.borrow_mut()
             .poll()
             .unwrap_or_else(|e| log::error!("Controller error: {}", e));
 
         if let Some(ref mut menu_instance) = menu {
-            menu_instance
-                .poll(&mut controller)
+            menu_instance.poll()
                 .unwrap_or_else(|e| log::error!("Menu error: {}", e));
         }
 
         if let Some(ref mut term) = terminal {
             if let Some(ref menu_instance) = menu {
-                term.draw(|f| render_ui(f, menu_instance, &controller))?;
+                term.draw(|f| render_ui(f, menu_instance, &controller.borrow()))?;
             }
         }
 
@@ -183,18 +194,13 @@ fn render_main_content(
         ])
         .split(area);
 
-    let tab_index = if menu.main_tab == menu::MainTab::Logs {
-        0
-    } else {
-        1
-    };
     let tabs = Tabs::new(vec!["Logs", "Badges"])
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::DarkGray)),
         )
-        .select(tab_index)
+        .select( menu.current_tab)
         .style(Style::default().fg(Color::Gray))
         .highlight_style(
             Style::default()
@@ -203,38 +209,10 @@ fn render_main_content(
         );
     f.render_widget(tabs, chunks[0]);
 
-    let help_text = if menu.main_tab == menu::MainTab::Logs {
-        "[TAB] Switch Tab  [Q] Quit".to_string()
-    } else {
-        menu.get_bottom_help()
-    };
-
-    match menu.main_tab {
-        menu::MainTab::Logs => render_logs_tab(f, chunks[1]),
-        menu::MainTab::Badges => menu.render(f, chunks[1]),
-    }
+        let help_text = menu.get_bottom_help();
+    menu.render(f, chunks[1]);
 
     render_help_bar(f, help_text, chunks[2]);
-}
-
-fn render_logs_tab(f: &mut Frame, area: ratatui::layout::Rect) {
-    let logs_height = area.height.saturating_sub(2) as usize;
-    let items: Vec<ListItem> = {
-        let buf = LOG_BUFFER.lock().unwrap();
-        buf.iter()
-            .rev()
-            .take(logs_height)
-            .map(|m| ListItem::new(m.clone()))
-            .collect()
-    };
-
-    let list = List::new(items).block(
-        Block::default()
-            .title(" Logs ")
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::DarkGray)),
-    );
-    f.render_widget(list, area);
 }
 
 fn render_help_bar(f: &mut Frame, help_text: String, area: ratatui::layout::Rect) {
