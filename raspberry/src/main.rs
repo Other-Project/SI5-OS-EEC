@@ -95,7 +95,7 @@ fn render_status_bar(f: &mut Frame, controller: &AlarmController, area: ratatui:
         .split(area);
 
     let status_items = [
-        (" State ", controller.state_icon(), Color::Yellow),
+        (" State ", controller.state_icon(), Color::White),
         (" Motion ", controller.motion_str(), Color::White),
         (" Button ", controller.btn_str(), Color::White),
         (
@@ -109,7 +109,7 @@ fn render_status_bar(f: &mut Frame, controller: &AlarmController, area: ratatui:
         let block = Block::default()
             .title(*title)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan));
+            .border_style(Style::default().fg(Color::DarkGray));
         let par = Paragraph::new(*content)
             .block(block)
             .style(Style::default().fg(*color))
@@ -142,13 +142,13 @@ fn render_main_content(
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan)),
+                .border_style(Style::default().fg(Color::DarkGray)),
         )
         .select(tab_index)
         .style(Style::default().fg(Color::Gray))
         .highlight_style(
             Style::default()
-                .fg(Color::Cyan)
+                .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         );
     f.render_widget(tabs, chunks[0]);
@@ -182,7 +182,7 @@ fn render_logs_tab(f: &mut Frame, area: ratatui::layout::Rect) {
         Block::default()
             .title(" Logs ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan)),
+            .border_style(Style::default().fg(Color::DarkGray)),
     );
     f.render_widget(list, area);
 }

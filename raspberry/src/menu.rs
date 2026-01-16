@@ -375,7 +375,7 @@ impl Menu {
                 Block::default()
                     .title(" Remove Badge ")
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
+                    .border_style(Style::default().fg(Color::DarkGray)),
             )
             .alignment(Alignment::Center);
         f.render_widget(paragraph, area);
@@ -399,7 +399,7 @@ impl Menu {
         let block = Block::default()
             .title(" Add Badge ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan));
+            .border_style(Style::default().fg(Color::DarkGray));
         f.render_widget(block, area);
 
         // UID
@@ -453,7 +453,7 @@ impl Menu {
     ) {
         let style = if is_selected {
             Style::default()
-                .fg(Color::Cyan)
+                .fg(Color::DarkGray)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::White)
@@ -494,7 +494,7 @@ impl Menu {
                 Block::default()
                     .title(format!(" {} ", title))
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
+                    .border_style(Style::default().fg(Color::DarkGray)),
             )
             .alignment(Alignment::Center);
         f.render_widget(paragraph, area);
@@ -526,7 +526,7 @@ impl Menu {
                 Block::default()
                     .title(" Badges ")
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
+                    .border_style(Style::default().fg(Color::DarkGray)),
             )
             .alignment(Alignment::Center);
         f.render_widget(paragraph, area);
@@ -541,7 +541,7 @@ impl Menu {
                 let is_selected = idx == self.selected_item;
                 let style = if is_selected {
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(Color::White)
@@ -568,7 +568,7 @@ impl Menu {
                     Span::raw(" "),
                     Span::styled(&badge.name, style.clone()),
                     Span::raw(" "),
-                    Span::styled(format!("({})", &badge.uid), Style::default().fg(Color::DarkGray)),
+                    Span::styled(format!("({})", &badge.uid), Style::default().fg(Color::Gray)),
                     Span::raw(" "),
                     Span::styled(
                        if badge.expires_at.is_some() {
@@ -583,12 +583,12 @@ impl Menu {
                        } else {
                            "[No Expiry]".to_string()
                        },
-                       Style::default().fg(Color::DarkGray)
+                       Style::default().fg(Color::Gray)
                     ),
                     Span::raw(" "),
                     Span::styled(
                         format!("[Created: {}]", badge.created_at.format("%Y-%m-%d").to_string()),
-                        Style::default().fg(Color::DarkGray),
+                        Style::default().fg(Color::Gray),
                     ),
                     Span::raw(" "),
                     Span::styled(
@@ -597,7 +597,7 @@ impl Menu {
                         } else {
                             "[Never Used]".to_string()
                         },
-                        Style::default().fg(Color::DarkGray),
+                        Style::default().fg(Color::Gray),
                     ),
                 ]))
             })
@@ -607,7 +607,7 @@ impl Menu {
             Block::default()
                 .title(format!(" Badges ({}) ", self.badges_list.len()))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan)),
+                .border_style(Style::default().fg(Color::DarkGray)),
         );
         f.render_widget(list, area);
     }
