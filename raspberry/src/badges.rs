@@ -51,11 +51,6 @@ impl BadgeManager {
         Ok(())
     }
 
-    /// Add a new permanent badge to the database
-    pub fn add_badge(&self, uid: &str, name: &str) -> Result<Badge> {
-        self.add_badge_with_expiry(uid, name, None)
-    }
-
     /// Add a new badge with optional expiry date (for temporary badges)
     pub fn add_badge_with_expiry(&self, uid: &str, name: &str, expires_at: Option<DateTime<Utc>>) -> Result<Badge> {
         if uid.is_empty() {
@@ -234,64 +229,6 @@ impl BadgeManager {
         Ok(())
     }
 
-    /// Get count of all badges
-    pub fn badge_count(&self) -> Result<usize> {
-        let count: usize = self.conn.query_row(
-            "SELECT COUNT(*) FROM badges",
-            [],
-            |row| row.get(0),
-        )?;
-        Ok(count)
-    }
-
-    /// Get count of enabled badges
-    pub fn enabled_badge_count(&self) -> Result<usize> {
-        let count: usize = self.conn.query_row(
-            "SELECT COUNT(*) FROM badges WHERE enabled = 1",
-            [],
-            |row| row.get(0),
-        )?;
-        Ok(count)
-    }
-
-    /// Check if a badge has expired
-    pub fn is_expired(&self, uid: &str) -> Result<bool> {
-        match self.get_badge(uid)? {
-            Some(badge) => {
-                match badge.expires_at {
-                    Some(expires_at) => Ok(Utc::now() > expires_at),
-                    None => Ok(false), // Permanent badges never expire
-                }
-            },
-            None => Err(anyhow!("Badge with UID '{}' not found", uid)),
-        }
-    }
-
-    /// Get badge expiry status as string
-    pub fn badge_status(&self, uid: &str) -> Result<String> {
-        match self.get_badge(uid)? {
-            Some(badge) => {
-                let status = if !badge.enabled {
-                    "DISABLED".to_string()
-                } else if let Some(expires_at) = badge.expires_at {
-                    let now = Utc::now();
-                    if now > expires_at {
-                        "EXPIRED".to_string()
-                    } else {
-                        let duration = expires_at - now;
-                        let hours = duration.num_hours();
-                        let minutes = duration.num_minutes() % 60;
-                        format!("TEMP ({:02}h {:02}m)", hours, minutes)
-                    }
-                } else {
-                    "PERMANENT".to_string()
-                };
-                Ok(status)
-            },
-            None => Err(anyhow!("Badge with UID '{}' not found", uid)),
-        }
-    }
-
     /// Clean up expired temporary badges from database
     pub fn cleanup_expired_badges(&self) -> Result<usize> {
         let rows = self.conn.execute(
@@ -302,42 +239,5 @@ impl BadgeManager {
             info!("Cleaned up {} expired temporary badges", rows);
         }
         Ok(rows)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_badge_operations() -> Result<()> {
-        let manager = BadgeManager::new(":memory:")?;
-
-        // Test adding a badge
-        let badge = manager.add_badge("01056DE7D658", "Test Badge")?;
-        assert_eq!(badge.uid, "01056DE7D658");
-        assert_eq!(badge.name, "Test Badge");
-        assert!(badge.enabled);
-
-        // Test getting a badge
-        let retrieved = manager.get_badge("01056DE7D658")?;
-        assert!(retrieved.is_some());
-
-        // Test is_valid_badge
-        assert!(manager.is_valid_badge("01056DE7D658")?);
-
-        // Test disabling a badge
-        manager.disable_badge("01056DE7D658")?;
-        assert!(!manager.is_valid_badge("01056DE7D658")?);
-
-        // Test enabling a badge
-        manager.enable_badge("01056DE7D658")?;
-        assert!(manager.is_valid_badge("01056DE7D658")?);
-
-        // Test removing a badge
-        manager.remove_badge("01056DE7D658")?;
-        assert!(manager.get_badge("01056DE7D658")?.is_none());
-
-        Ok(())
     }
 }

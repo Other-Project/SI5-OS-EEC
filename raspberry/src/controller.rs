@@ -34,9 +34,7 @@ impl AlarmController {
         screen.clear()?;
 
         let badge_manager = BadgeManager::new(BADGE_DB_PATH)?;
-        if !badge_manager.is_valid_badge("01056DE7D658").unwrap_or(false) {
-            badge_manager.add_badge("01056DE7D658", "Admin Badge")?;
-        }
+        badge_manager.cleanup_expired_badges()?;
 
         Ok(Self {
             arduino,
@@ -156,11 +154,5 @@ impl AlarmController {
 
     pub fn get_last_rfid(&self) -> Option<&str> {
         self.last_rfid.as_deref()
-    }
-
-    pub fn get_all_badges(&self) -> Result<Vec<(String, String)>> {
-        let badges = self.badge_manager.get_all_badges()?;
-        let result = badges.into_iter().map(|b| (b.uid, b.name)).collect();
-        Ok(result)
     }
 }
