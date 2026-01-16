@@ -21,6 +21,7 @@ mod arduino_consts;
 mod lcd;
 mod controller;
 mod tui_logger;
+mod badges;
 
 fn main() -> Result<()> {
     init_logger().ok();

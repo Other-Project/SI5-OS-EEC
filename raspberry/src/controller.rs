@@ -6,10 +6,11 @@ use crate::arduino::ArduinoI2C;
 use crate::arduino_consts::Events;
 use crate::arduino_consts::SecurityState;
 use crate::lcd::GroveLcd;
+use crate::badges::BadgeManager;
 
 // Config
 const I2C_SLAVE_ADDR: u16 = 0x32;
-pub const VALID_BADGES: &[&str] = &["01056DE7D658"];
+const BADGE_DB_PATH: &str = "badges.db";
 
 pub struct AlarmController {
     arduino: ArduinoI2C,
@@ -17,6 +18,7 @@ pub struct AlarmController {
     current_state: SecurityState,
     last_events: Events,
     last_rfid: Option<String>,
+    badge_manager: BadgeManager,
 }
 
 impl AlarmController {
@@ -27,10 +29,11 @@ impl AlarmController {
 
         let screen = GroveLcd::new()?;
         screen.clear()?;
-        screen.set_cursor(0, 0)?;
-        screen.print("Systeme Actif")?;
-        screen.set_cursor(0, 1)?;
-        screen.print("Initialisation..")?;
+
+        let badge_manager = BadgeManager::new(BADGE_DB_PATH)?;
+        if !badge_manager.is_valid_badge("01056DE7D658").unwrap_or(false) {
+            badge_manager.add_badge("01056DE7D658", "Admin Badge")?;
+        }
 
         Ok(Self {
             arduino,
@@ -38,6 +41,7 @@ impl AlarmController {
             current_state,
             last_events: Events::empty(),
             last_rfid: None,
+            badge_manager,
         })
     }
 
@@ -58,13 +62,21 @@ impl AlarmController {
         if events.contains(Events::RFID_READ) {
             let uid = self.arduino.read_rfid_uid()?;
             self.last_rfid = Some(uid.clone());
-            if VALID_BADGES.contains(&uid.as_str()) {
-                if old_state != SecurityState::Disarmed {
-                    info!("🟢 Disarmed via Badge {}", uid);
-                    new_state = Some(SecurityState::Disarmed);
+            
+            // Check if badge is valid using database
+            match self.badge_manager.is_valid_badge(&uid) {
+                Ok(true) => {
+                    if old_state != SecurityState::Disarmed {
+                        if let Ok(Some(badge)) = self.badge_manager.get_badge(&uid) {
+                            info!("🟢 Disarmed via Badge {}", badge.name);
+                            self.badge_manager.update_last_used(&uid).ok();
+                        }
+                        new_state = Some(SecurityState::Disarmed);
+                    }
+                },
+                _ => {
+                    info!("⚠️ ACCESS DENIED: Unknown or disabled badge {}", uid);
                 }
-            } else {
-                info!("⚠️ ACCESS DENIED: Unknown badge {}", uid);
             }
         }
 
@@ -93,6 +105,10 @@ impl AlarmController {
 
     pub fn last_rfid(&self) -> Option<&str> {
         self.last_rfid.as_deref()
+    }
+
+    pub fn badge_manager(&self) -> &BadgeManager {
+        &self.badge_manager
     }
 
     pub fn state_icon(&self) -> &'static str {
