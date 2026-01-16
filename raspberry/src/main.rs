@@ -2,18 +2,20 @@ use anyhow::Result;
 use std::io;
 use std::thread;
 use std::time::Duration;
-use tui::layout::{Constraint, Direction, Layout};
-use tui::style::{Color, Modifier, Style};
-use tui::widgets::{Block, Borders, List, ListItem, Paragraph};
-use tui::{backend::CrosstermBackend, Terminal};
+use ratatui::layout::{Constraint, Direction, Layout, Alignment};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Tabs};
+use ratatui::{backend::CrosstermBackend, Terminal, Frame};
 
 use crossterm::{
-    event::{self, Event as CEvent, KeyCode},
+    event::{self, Event as CEvent},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 use crate::controller::AlarmController;
+use crate::menu::Menu;
 use crate::tui_logger::{init_logger, LOG_BUFFER};
 
 mod arduino;
@@ -22,11 +24,11 @@ mod lcd;
 mod controller;
 mod tui_logger;
 mod badges;
+mod menu;
 
 fn main() -> Result<()> {
     init_logger().ok();
 
-    // setup terminal
     enable_raw_mode()?;
     execute!(io::stdout(), EnterAlternateScreen)?;
     let stdout = io::stdout();
@@ -34,96 +36,133 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let res = (|| -> Result<()> {
-        let mut controller = AlarmController::new()?;
-        loop {
-            // check keyboard events (non-blocking)
-            if event::poll(Duration::from_millis(0))? {
-                if let CEvent::Key(key) = event::read()? {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => break,
-                        _ => {}
-                    }
-                }
-            }
+    let res = run_app(&mut terminal);
 
-            if let Err(e) = controller.poll() {
-                log::error!("{}", e);
-            }
-
-            terminal.draw(|f| {
-                let size = f.size();
-                let lines = Layout::default()
-                    .direction(Direction::Vertical)
-                    .margin(1)
-                    .constraints([Constraint::Length(3), Constraint::Min(1)].as_ref())
-                    .split(size);
-
-                // Left: main state
-                let monitor_cols = Layout::default()
-                    .direction(Direction::Horizontal)
-                    .constraints(
-                        [
-                            Constraint::Percentage(25),
-                            Constraint::Percentage(25),
-                            Constraint::Percentage(25),
-                            Constraint::Percentage(25),
-                        ]
-                        .as_ref(),
-                    )
-                    .split(lines[0]);
-
-                let state_block = Block::default().title("State").borders(Borders::ALL);
-                let state_par = Paragraph::new(controller.state_icon())
-                    .block(state_block)
-                    .style(Style::default().fg(Color::Yellow));
-                f.render_widget(state_par, monitor_cols[0]);
-
-                let motion_block = Block::default().title("Motion").borders(Borders::ALL);
-                let motion_par = Paragraph::new(controller.motion_str())
-                    .block(motion_block)
-                    .style(Style::default().fg(Color::White));
-                f.render_widget(motion_par, monitor_cols[1]);
-
-                let button_block = Block::default().title("Button").borders(Borders::ALL);
-                let button_par = Paragraph::new(controller.btn_str())
-                    .block(button_block)
-                    .style(Style::default().fg(Color::White));
-                f.render_widget(button_par, monitor_cols[2]);
-
-                let mid_block = Block::default().title("Last Badge").borders(Borders::ALL);
-                let last_rfid = controller.last_rfid().unwrap_or("None");
-                let mid_par = Paragraph::new(format!("{}", last_rfid))
-                    .block(mid_block)
-                    .style(Style::default().fg(Color::White));
-                f.render_widget(mid_par, monitor_cols[3]);
-
-                let logs_block = Block::default().title("Logs").borders(Borders::ALL);
-                let logs_height = lines[1].height.saturating_sub(2) as usize;
-                let log_lines: Vec<String> = {
-                    let buf = LOG_BUFFER.lock().unwrap();
-                    buf.iter().rev().take(logs_height).cloned().collect()
-                };
-                let items: Vec<ListItem> = log_lines
-                    .into_iter()
-                    .map(|m| ListItem::new(m).style(Style::default()))
-                    .collect();
-                let list = List::new(items)
-                    .block(logs_block)
-                    .highlight_style(Style::default().add_modifier(Modifier::BOLD));
-                f.render_widget(list, lines[1]);
-            })?;
-
-            thread::sleep(Duration::from_millis(100));
-        }
-        Ok(())
-    })();
-
-    // restore terminal
     disable_raw_mode()?;
     execute!(io::stdout(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
-    res?;
+    res
+}
+
+fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
+    let mut controller = AlarmController::new()?;
+    let mut menu = Menu::new();
+    
+    loop {
+        if event::poll(Duration::from_millis(0))? {
+            if let CEvent::Key(key) = event::read()? {
+                if let Ok(Some(action)) = menu.handle_key(key.code, &mut controller) {
+                    if action == "quit" {
+                        break;
+                    }
+                }
+            }
+        }
+
+        controller.poll().unwrap_or_else(|e| log::error!("Controller error: {}", e));
+        menu.poll(&mut controller).unwrap_or_else(|e| log::error!("Menu error: {}", e));
+
+        terminal.draw(|f| render_ui(f, &menu, &controller))?;
+        thread::sleep(Duration::from_millis(100));
+    }
     Ok(())
+}
+
+fn render_ui(f: &mut Frame, menu: &Menu, controller: &AlarmController) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([Constraint::Length(3), Constraint::Min(1)])
+        .split(f.area());
+
+    render_status_bar(f, controller, chunks[0]);
+    render_main_content(f, menu, controller, chunks[1]);
+}
+
+fn render_status_bar(f: &mut Frame, controller: &AlarmController, area: ratatui::layout::Rect) {
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+        ])
+        .split(area);
+
+    let status_items = [
+        (" State ", controller.state_icon(), Color::Yellow),
+        (" Motion ", controller.motion_str(), Color::White),
+        (" Button ", controller.btn_str(), Color::White),
+        (" Last Badge ", controller.last_rfid().unwrap_or("None"), Color::White),
+    ];
+
+    for (i, (title, content, color)) in status_items.iter().enumerate() {
+        let block = Block::default()
+            .title(*title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan));
+        let par = Paragraph::new(*content)
+            .block(block)
+            .style(Style::default().fg(*color))
+            .alignment(Alignment::Center);
+        f.render_widget(par, chunks[i]);
+    }
+}
+
+fn render_main_content(f: &mut Frame, menu: &Menu, _controller: &AlarmController, area: ratatui::layout::Rect) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(0),
+            Constraint::Length(1),
+        ])
+        .split(area);
+
+    let tab_index = if menu.main_tab == menu::MainTab::Logs { 0 } else { 1 };
+    let tabs = Tabs::new(vec!["Logs", "Badges"])
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan)))
+        .select(tab_index)
+        .style(Style::default().fg(Color::Gray))
+        .highlight_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    f.render_widget(tabs, chunks[0]);
+
+    let help_text = if menu.main_tab == menu::MainTab::Logs {
+        "[TAB] Switch Tab  [Q] Quit"
+    } else {
+        menu.get_bottom_help()
+    };
+
+    match menu.main_tab {
+        menu::MainTab::Logs => render_logs_tab(f, chunks[1]),
+        menu::MainTab::Badges => menu.render(f, chunks[1]),
+    }
+    
+    render_help_bar(f, help_text, chunks[2]);
+}
+
+fn render_logs_tab(f: &mut Frame, area: ratatui::layout::Rect) {
+    let logs_height = area.height.saturating_sub(2) as usize;
+    let items: Vec<ListItem> = {
+        let buf = LOG_BUFFER.lock().unwrap();
+        buf.iter()
+            .rev()
+            .take(logs_height)
+            .map(|m| ListItem::new(m.clone()))
+            .collect()
+    };
+    
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan)));
+    f.render_widget(list, area);
+}
+
+fn render_help_bar(f: &mut Frame, help_text: &str, area: ratatui::layout::Rect) {
+    let help_par = Paragraph::new(Line::from(vec![
+        Span::styled(help_text, Style::default().fg(Color::DarkGray)),
+    ]))
+    .alignment(Alignment::Center);
+    f.render_widget(help_par, area);
 }

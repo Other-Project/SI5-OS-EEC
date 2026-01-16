@@ -1,6 +1,7 @@
 use anyhow::Result;
 use log::debug;
 use log::info;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::arduino::ArduinoI2C;
 use crate::arduino_consts::Events;
@@ -11,6 +12,7 @@ use crate::badges::BadgeManager;
 // Config
 const I2C_SLAVE_ADDR: u16 = 0x32;
 const BADGE_DB_PATH: &str = "badges.db";
+const RFID_TIMEOUT_SECS: u64 = 5; // Reset RFID after 5 seconds
 
 pub struct AlarmController {
     arduino: ArduinoI2C,
@@ -18,6 +20,7 @@ pub struct AlarmController {
     current_state: SecurityState,
     last_events: Events,
     last_rfid: Option<String>,
+    last_rfid_time: u64,
     badge_manager: BadgeManager,
 }
 
@@ -41,6 +44,7 @@ impl AlarmController {
             current_state,
             last_events: Events::empty(),
             last_rfid: None,
+            last_rfid_time: 0,
             badge_manager,
         })
     }
@@ -52,6 +56,17 @@ impl AlarmController {
         self.last_events = events.clone();
         let mut new_state = None;
 
+        // Check if RFID timeout has expired
+        if let Some(_) = self.last_rfid {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            if now - self.last_rfid_time > RFID_TIMEOUT_SECS {
+                self.last_rfid = None;
+            }
+        }
+
         // Arming
         if events.contains(Events::BTN_PRESSED) && old_state == SecurityState::Disarmed {
             info!("🛑 Armed via Button");
@@ -62,6 +77,10 @@ impl AlarmController {
         if events.contains(Events::RFID_READ) {
             let uid = self.arduino.read_rfid_uid()?;
             self.last_rfid = Some(uid.clone());
+            self.last_rfid_time = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
             
             // Check if badge is valid using database
             match self.badge_manager.is_valid_badge(&uid) {
@@ -133,5 +152,15 @@ impl AlarmController {
         } else {
             "RELEASED"
         }
+    }
+
+    pub fn get_last_rfid(&self) -> Option<&str> {
+        self.last_rfid.as_deref()
+    }
+
+    pub fn get_all_badges(&self) -> Result<Vec<(String, String)>> {
+        let badges = self.badge_manager.get_all_badges()?;
+        let result = badges.into_iter().map(|b| (b.uid, b.name)).collect();
+        Ok(result)
     }
 }
