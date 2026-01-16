@@ -1,10 +1,13 @@
 use anyhow::Result;
+use clap::Parser;
+use log::info;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Tabs};
 use ratatui::{backend::CrosstermBackend, Frame, Terminal};
 use std::io;
+use std::io::Write;
 use std::thread;
 use std::time::Duration;
 
@@ -26,35 +29,72 @@ mod lcd;
 mod menu;
 mod tui_logger;
 
-fn main() -> Result<()> {
-    init_logger().ok();
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Enable TUI mode
+    #[arg(short, long)]
+    tui: bool,
+}
 
-    enable_raw_mode()?;
-    execute!(io::stdout(), EnterAlternateScreen)?;
-    let stdout = io::stdout();
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-    terminal.clear()?;
+fn main() -> Result<()> {
+    let cli = Args::parse();
+
+    let mut terminal = if cli.tui {
+        enable_raw_mode()?;
+        execute!(io::stdout(), EnterAlternateScreen)?;
+        let stdout = io::stdout();
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
+        terminal.clear()?;
+        init_logger().ok();
+        Some(terminal)
+    } else {
+        env_logger::builder()
+            .is_test(false)
+            .filter_level(log::LevelFilter::Info)
+            .format(|buf, record| {
+                let now: chrono::DateTime<chrono::Local> = chrono::Local::now();
+                writeln!(
+                    buf,
+                    "[{}] [{}] {}",
+                    now.format("%Y-%m-%d %H:%M:%S"),
+                    record.level(),
+                    record.args()
+                )
+            })
+            .init();
+        info!("Starting in daemon mode");
+        None
+    };
 
     let res = run_app(&mut terminal);
 
-    disable_raw_mode()?;
-    execute!(io::stdout(), LeaveAlternateScreen)?;
-    terminal.show_cursor()?;
+    if let Some(term) = terminal.as_mut() {
+        disable_raw_mode()?;
+        execute!(io::stdout(), LeaveAlternateScreen)?;
+        term.show_cursor()?;
+    }
 
     res
 }
 
-fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
+fn run_app(terminal: &mut Option<Terminal<CrosstermBackend<io::Stdout>>>) -> Result<()> {
     let mut controller = AlarmController::new()?;
-    let mut menu = Menu::new();
+    let mut menu = if terminal.is_some() {
+        Some(Menu::new())
+    } else {
+        None
+    };
 
     loop {
-        if event::poll(Duration::from_millis(0))? {
-            if let CEvent::Key(key) = event::read()? {
-                if let Ok(Some(action)) = menu.handle_key(key.code, &mut controller) {
-                    if action == "quit" {
-                        break;
+        if let Some(ref mut menu_instance) = menu {
+            if event::poll(Duration::from_millis(0))? {
+                if let CEvent::Key(key) = event::read()? {
+                    if let Ok(Some(action)) = menu_instance.handle_key(key.code, &mut controller) {
+                        if action == "quit" {
+                            break;
+                        }
                     }
                 }
             }
@@ -63,10 +103,19 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
         controller
             .poll()
             .unwrap_or_else(|e| log::error!("Controller error: {}", e));
-        menu.poll(&mut controller)
-            .unwrap_or_else(|e| log::error!("Menu error: {}", e));
 
-        terminal.draw(|f| render_ui(f, &menu, &controller))?;
+        if let Some(ref mut menu_instance) = menu {
+            menu_instance
+                .poll(&mut controller)
+                .unwrap_or_else(|e| log::error!("Menu error: {}", e));
+        }
+
+        if let Some(ref mut term) = terminal {
+            if let Some(ref menu_instance) = menu {
+                term.draw(|f| render_ui(f, menu_instance, &controller))?;
+            }
+        }
+
         thread::sleep(Duration::from_millis(100));
     }
     Ok(())

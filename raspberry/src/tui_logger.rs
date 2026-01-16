@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use lazy_static::lazy_static;
 use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
 use std::sync::{Arc, Mutex};
@@ -15,7 +16,8 @@ impl log::Log for TuiLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            let msg = format!("[{}] {}", record.level(), record.args());
+            let now: DateTime<chrono::Local> = chrono::Local::now();
+            let msg = format!("[{}] [{}] {}", now.format("%Y-%m-%d %H:%M:%S"), record.level(), record.args());
             let mut buf = LOG_BUFFER.lock().unwrap();
             buf.push(msg);
             
