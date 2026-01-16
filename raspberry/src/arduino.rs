@@ -59,8 +59,6 @@ impl ArduinoI2C {
             ));
         }
 
-        std::thread::sleep(std::time::Duration::from_micros(1000)); // Let Arduino prepare data
-
         let mut buf = vec![0u8; count as usize + 1]; // +1 for checksum
         let read_count = bus.read(&mut buf)?;
 

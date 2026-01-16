@@ -1,4 +1,5 @@
 use anyhow::Result;
+use log::debug;
 use log::info;
 
 use crate::arduino::ArduinoI2C;
@@ -19,7 +20,7 @@ pub struct AlarmController {
 impl AlarmController {
     pub fn new() -> Result<Self> {
         let mut arduino = ArduinoI2C::new(I2C_SLAVE_ADDR)?;
-        info!("Initial registers: {:?}", arduino.get_all_registers()?);
+        debug!("Initial registers: {:?}", arduino.get_all_registers()?);
         let current_state = arduino.get_system_state()?;
         Ok(Self {
             arduino,
@@ -30,20 +31,16 @@ impl AlarmController {
     }
 
     pub fn poll(&mut self) -> Result<()> {
+        let old_state = self.current_state;
         self.current_state = self.arduino.get_system_state()?;
         let events = self.arduino.get_events()?;
         self.last_events = events.clone();
         let mut new_state = None;
 
         // Arming
-        if events.contains(Events::BTN_PRESSED) {
-            match self.current_state {
-                SecurityState::Disarmed => {
-                    info!("🛑 Armed via Button");
-                    new_state = Some(SecurityState::Armed);
-                }
-                _ => {}
-            }
+        if events.contains(Events::BTN_PRESSED) && old_state == SecurityState::Disarmed {
+            info!("🛑 Armed via Button");
+            new_state = Some(SecurityState::Armed);
         }
 
         // RFID
@@ -51,7 +48,7 @@ impl AlarmController {
             let uid = self.arduino.read_rfid_uid()?;
             self.last_rfid = Some(uid.clone());
             if VALID_BADGES.contains(&uid.as_str()) {
-                if self.current_state != SecurityState::Disarmed {
+                if old_state != SecurityState::Disarmed {
                     info!("🟢 Disarmed via Badge {}", uid);
                     new_state = Some(SecurityState::Disarmed);
                 }
@@ -61,14 +58,16 @@ impl AlarmController {
         }
 
         // Motion detection
-        if self.current_state == SecurityState::Armed && events.contains(Events::MOTION_DETECTED) {
+        if old_state == SecurityState::Armed && events.contains(Events::MOTION_DETECTED) {
             info!("🚨 INTRUSION DETECTED! ALARM!");
             new_state = Some(SecurityState::Triggered);
         }
 
         if let Some(state) = new_state {
-            self.current_state = state;
-            self.arduino.set_system_state(self.current_state)?;
+            if state != self.current_state {
+                self.current_state = state;
+                self.arduino.set_system_state(self.current_state)?;
+            }
         }
         Ok(())
     }
