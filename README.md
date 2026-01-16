@@ -53,7 +53,7 @@ Ce système comprend :
 
 1. Flash the Raspberry Pi 3B with Raspbian Server
 2. Install i2c-tools using `sudo apt install i2c-tools`
-3. Configure I2C using `sudo raspi-config` (Interface Options -> I2C)
-4. Check for I2C connection with `i2cdetect -y 1`
+3. Configure I²C using `sudo raspi-config` (Interface Options -> I2C)
+4. Check for I²C connection with `i2cdetect -y 1`
 5. On your computer, build and deploy the rust code using `make -C raspberry deploy`
-6. Launch the program on the Raspberry Pi 3B using `./arduino_i2c`
+6. Launch the program on the Raspberry Pi 3B using `./arduino_i2c --tui` (or setup `./arduino_i2c` as a service)
