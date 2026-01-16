@@ -54,7 +54,11 @@ impl BadgeMenu {
     }
 
     fn load_badges_with_status(&mut self) -> Result<()> {
-        self.badges_list = self.controller.borrow_mut().badge_manager().get_all_badges()?;
+        self.badges_list = self
+            .controller
+            .borrow_mut()
+            .badge_manager()
+            .get_all_badges()?;
         self.max_items = self.badges_list.len().max(1);
         Ok(())
     }
@@ -93,43 +97,7 @@ impl BadgeMenu {
         Ok(())
     }
 
-    fn handle_add_badge_keys(
-        &mut self,
-        key: KeyCode,
-    ) -> Result<Option<String>> {
-        match key {
-            KeyCode::Esc => {
-                self.badge_tab = BadgeTab::ListBadges;
-                self.badge_field = None;
-                self.message = None;
-                self.load_badges_with_status()?;
-                Ok(None)
-            }
-            _ => Ok(None),
-        }
-    }
-
-    fn handle_remove_badge_keys(
-        &mut self,
-        key: KeyCode,
-    ) -> Result<Option<String>> {
-        match key {
-            KeyCode::Esc => {
-                self.badge_tab = BadgeTab::ListBadges;
-                self.last_badge_uid = None;
-                self.message = None;
-                self.load_badges_with_status()?;
-                Ok(None)
-            }
-            _ => Ok(None),
-        }
-    }
-
-    fn handle_badge_field_input(
-        &mut self,
-        key: KeyCode,
-        field: &BadgeField,
-    ) -> Result<Option<String>> {
+    fn handle_badge_field_input(&mut self, key: KeyCode, field: &BadgeField) -> Result<()> {
         match key {
             KeyCode::Down if field.selected_field < 1 => {
                 if let Some(ref mut f) = self.badge_field {
@@ -160,20 +128,17 @@ impl BadgeMenu {
                 }
             }
             KeyCode::Enter => {
-                return self.confirm_add_badge(field);
+                self.confirm_add_badge(field)?;
             }
             KeyCode::Esc => {
                 self.cancel_badge_operation()?;
             }
             _ => {}
         }
-        Ok(None)
+        Ok(())
     }
 
-    fn confirm_add_badge(
-        &mut self,
-        field: &BadgeField,
-    ) -> Result<Option<String>> {
+    fn confirm_add_badge(&mut self, field: &BadgeField) -> Result<Option<String>> {
         let expiry_date = if !field.expiry_days.is_empty() {
             field
                 .expiry_days
@@ -184,7 +149,8 @@ impl BadgeMenu {
             None
         };
 
-        self.controller.borrow_mut()
+        self.controller
+            .borrow_mut()
             .badge_manager()
             .add_badge_with_expiry(&field.uid, &field.name, expiry_date)?;
         self.message = Some(format!("Badge added: {} ({})", field.name, field.uid));
@@ -197,62 +163,6 @@ impl BadgeMenu {
         self.badge_tab = BadgeTab::ListBadges;
         self.message = None;
         self.load_badges_with_status()
-    }
-
-    fn handle_list_badges(
-        &mut self,
-        key: KeyCode,
-    ) -> Result<Option<String>> {
-        match key {
-            KeyCode::Up => {
-                if self.selected_item > 0 {
-                    self.selected_item -= 1;
-                }
-                Ok(None)
-            }
-            KeyCode::Down => {
-                if self.selected_item < self.max_items.saturating_sub(1) {
-                    self.selected_item += 1;
-                }
-                Ok(None)
-            }
-            KeyCode::Char('a') | KeyCode::Char('A') => {
-                self.badge_tab = BadgeTab::AddBadge;
-                self.message = Some("Place badge near scanner...".to_string());
-                Ok(None)
-            }
-            KeyCode::Char('d') | KeyCode::Char('D') => {
-                if let Some(badge) = self.badges_list.get(self.selected_item) {
-                    self.controller.borrow_mut().badge_manager().remove_badge(&badge.uid)?;
-                    self.load_badges_with_status()?;
-                    if self.selected_item >= self.max_items {
-                        self.selected_item = self.max_items.saturating_sub(1);
-                    }
-                }
-                Ok(None)
-            }
-            KeyCode::Char('r') | KeyCode::Char('R') => {
-                self.badge_tab = BadgeTab::RemoveBadge;
-                self.message = Some("Place badge near scanner to remove...".to_string());
-                Ok(None)
-            }
-            KeyCode::Char('e') | KeyCode::Char('E') => {
-                if let Some(badge) = self.badges_list.get(self.selected_item) {
-                    let is_enabled = self.controller.borrow()
-                        .badge_manager()
-                        .is_valid_badge(&badge.uid)
-                        .unwrap_or(false);
-                    if is_enabled {
-                        self.controller.borrow_mut().badge_manager().disable_badge(&badge.uid)?;
-                    } else {
-                        self.controller.borrow_mut().badge_manager().enable_badge(&badge.uid)?;
-                    }
-                    self.load_badges_with_status()?;
-                }
-                Ok(None)
-            }
-            _ => Ok(None),
-        }
     }
 
     fn render_add_badge(&self, f: &mut Frame, area: ratatui::layout::Rect) {
@@ -475,26 +385,28 @@ impl BadgeMenu {
                     Span::raw(" "),
                     Span::styled(&badge.name, style.clone()),
                     Span::raw(" "),
-                    Span::styled(format!("({})", &badge.uid), Style::default().fg(Color::Gray)),
-                    Span::raw(" "),
                     Span::styled(
-                       if badge.expires_at.is_some() {
-                           format!(
-                               "[Expires: {}]",
-                               badge
-                                   .expires_at
-                                   .unwrap()
-                                   .format("%Y-%m-%d")
-                                   .to_string()
-                           )
-                       } else {
-                           "[No Expiry]".to_string()
-                       },
-                       Style::default().fg(Color::Gray)
+                        format!("({})", &badge.uid),
+                        Style::default().fg(Color::Gray),
                     ),
                     Span::raw(" "),
                     Span::styled(
-                        format!("[Created: {}]", badge.created_at.format("%Y-%m-%d").to_string()),
+                        if badge.expires_at.is_some() {
+                            format!(
+                                "[Expires: {}]",
+                                badge.expires_at.unwrap().format("%Y-%m-%d").to_string()
+                            )
+                        } else {
+                            "[No Expiry]".to_string()
+                        },
+                        Style::default().fg(Color::Gray),
+                    ),
+                    Span::raw(" "),
+                    Span::styled(
+                        format!(
+                            "[Created: {}]",
+                            badge.created_at.format("%Y-%m-%d").to_string()
+                        ),
                         Style::default().fg(Color::Gray),
                     ),
                     Span::raw(" "),
@@ -517,6 +429,84 @@ impl BadgeMenu {
                 .border_style(Style::default().fg(Color::DarkGray)),
         );
         f.render_widget(list, area);
+    }
+
+    fn handle_esc(&mut self) -> Result<bool> {
+        self.badge_tab = BadgeTab::ListBadges;
+        self.selected_item = 0;
+        self.last_badge_uid = None;
+        self.message = None;
+        self.badge_field = None;
+        self.load_badges_with_status()?;
+        Ok(true)
+    }
+
+    fn handle_up(&mut self) -> Result<bool> {
+        if self.selected_item > 0 {
+            self.selected_item -= 1;
+        }
+        Ok(true)
+    }
+
+    fn handle_down(&mut self) -> Result<bool> {
+        if self.selected_item < self.max_items.saturating_sub(1) {
+            self.selected_item += 1;
+        }
+        Ok(true)
+    }
+
+    fn handle_add_badge(&mut self) -> Result<bool> {
+        self.badge_tab = BadgeTab::AddBadge;
+        self.message = Some("Place badge near scanner...".to_string());
+        Ok(true)
+    }
+
+    fn handle_delete_badge(&mut self) -> Result<bool> {
+        if let Some(badge) = self.badges_list.get(self.selected_item) {
+            self.controller
+                .borrow_mut()
+                .badge_manager()
+                .remove_badge(&badge.uid)?;
+            self.load_badges_with_status()?;
+            if self.selected_item >= self.max_items {
+                self.selected_item = self.max_items.saturating_sub(1);
+            }
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    fn handle_remove_badge(&mut self) -> Result<bool> {
+        self.badge_tab = BadgeTab::RemoveBadge;
+        self.message = Some("Place badge near scanner to remove...".to_string());
+        Ok(true)
+    }
+
+    fn handle_toggle_badge(&mut self) -> Result<bool> {
+        if self.badge_tab == BadgeTab::ListBadges {
+            if let Some(badge) = self.badges_list.get(self.selected_item) {
+                let is_enabled = self
+                    .controller
+                    .borrow()
+                    .badge_manager()
+                    .is_valid_badge(&badge.uid)
+                    .unwrap_or(false);
+                if is_enabled {
+                    self.controller
+                        .borrow_mut()
+                        .badge_manager()
+                        .disable_badge(&badge.uid)?;
+                } else {
+                    self.controller
+                        .borrow_mut()
+                        .badge_manager()
+                        .enable_badge(&badge.uid)?;
+                }
+                self.load_badges_with_status()?;
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 }
 
@@ -568,14 +558,26 @@ impl TuiMenuTrait for BadgeMenu {
     fn handle_key(&mut self, key: KeyCode) -> anyhow::Result<bool> {
         if let Some(field) = self.badge_field.clone() {
             self.handle_badge_field_input(key, &field)?;
-            return Ok(false);
+            return Ok(true);
         }
 
-        match self.badge_tab {
-            BadgeTab::AddBadge => { self.handle_add_badge_keys(key)?; }
-            BadgeTab::RemoveBadge => { self.handle_remove_badge_keys(key)?; }
-            BadgeTab::ListBadges => { self.handle_list_badges(key)?; }
+        let is_sub_menu = self.badge_tab != BadgeTab::ListBadges;
+        let is_list_menu = self.badge_tab == BadgeTab::ListBadges;
+        let is_badge_selected = is_list_menu && !self.badges_list.is_empty();
+
+        match key {
+            KeyCode::Esc if is_sub_menu => self.handle_esc(),
+            KeyCode::Up if is_badge_selected => self.handle_up(),
+            KeyCode::Down if is_badge_selected => self.handle_down(),
+            KeyCode::Char('a') | KeyCode::Char('A') if is_list_menu => self.handle_add_badge(),
+            KeyCode::Char('r') | KeyCode::Char('R') if is_list_menu => self.handle_remove_badge(),
+            KeyCode::Char('d') | KeyCode::Char('D') if is_badge_selected => {
+                self.handle_delete_badge()
+            }
+            KeyCode::Char('e') | KeyCode::Char('E') if is_badge_selected => {
+                self.handle_toggle_badge()
+            }
+            _ => Ok(is_sub_menu), // Disallow default keys in sub-menus
         }
-        Ok(self.badge_tab != BadgeTab::ListBadges)
     }
 }

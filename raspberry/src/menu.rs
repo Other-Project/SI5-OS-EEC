@@ -54,9 +54,14 @@ impl Menu {
 }
 
 pub trait TuiMenuTrait {
+    /// Resets the menu state when switched to
     fn reset(&mut self) -> Result<()>;
+    /// Renders the menu content in TUI mode
     fn render(&self, f: &mut Frame, area: ratatui::layout::Rect);
+    /// Polls for any updates needed by the menu
     fn poll(&mut self) -> Result<()>;
+    /// Returns help text for available keys (None for default)
     fn key_help(&self) -> Option<String>;
+    /// Handles a key event, returning true if the menu handled it
     fn handle_key(&mut self, key: KeyCode) -> Result<bool>;
 }
