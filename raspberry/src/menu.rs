@@ -15,6 +15,10 @@ impl Menu {
         }
     }
 
+    pub fn tabs(&self) -> Vec<&str> {
+        self.tabs.iter().map(|t| t.name()).collect()
+    }
+
     fn get_current_tab_mut(&mut self) -> &mut dyn TuiMenuTrait {
         self.tabs[self.current_tab].as_mut()
     }
@@ -54,14 +58,32 @@ impl Menu {
 }
 
 pub trait TuiMenuTrait {
+    /// Returns the name of the menu
+    fn name(&self) -> &'static str;
+
     /// Resets the menu state when switched to
-    fn reset(&mut self) -> Result<()>;
+    fn reset(&mut self) -> Result<()>
+    {
+        Ok(())
+    }
+
     /// Renders the menu content in TUI mode
     fn render(&self, f: &mut Frame, area: ratatui::layout::Rect);
+
     /// Polls for any updates needed by the menu
-    fn poll(&mut self) -> Result<()>;
+    fn poll(&mut self) -> Result<()>
+    {
+        Ok(())
+    }
+
     /// Returns help text for available keys (None for default)
-    fn key_help(&self) -> Option<String>;
+    fn key_help(&self) -> Option<String>
+    {
+        None
+    }
+    
     /// Handles a key event, returning true if the menu handled it
-    fn handle_key(&mut self, key: KeyCode) -> Result<bool>;
+    fn handle_key(&mut self, _: KeyCode) -> Result<bool>{
+        Ok(false)
+    }
 }

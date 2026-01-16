@@ -21,17 +21,17 @@ use crossterm::{
 
 use crate::controller::AlarmController;
 use crate::menu::Menu;
-use crate::{badge_menu::BadgeMenu, log_menu::LogMenu};
 use crate::tui_logger::init_logger;
+use crate::{badge_menu::BadgeMenu, log_menu::LogMenu};
 
 mod arduino;
 mod arduino_consts;
+mod badge_menu;
 mod badges;
 mod controller;
 mod lcd;
-mod menu;
-mod badge_menu;
 mod log_menu;
+mod menu;
 mod tui_logger;
 
 #[derive(Parser, Debug)]
@@ -113,12 +113,14 @@ fn run_app(terminal: &mut Option<Terminal<CrosstermBackend<io::Stdout>>>) -> Res
             }
         }
 
-        controller.borrow_mut()
+        controller
+            .borrow_mut()
             .poll()
             .unwrap_or_else(|e| log::error!("Controller error: {}", e));
 
         if let Some(ref mut menu_instance) = menu {
-            menu_instance.poll()
+            menu_instance
+                .poll()
                 .unwrap_or_else(|e| log::error!("Menu error: {}", e));
         }
 
@@ -194,13 +196,13 @@ fn render_main_content(
         ])
         .split(area);
 
-    let tabs = Tabs::new(vec!["Logs", "Badges"])
+    let tabs = Tabs::new(menu.tabs())
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::DarkGray)),
         )
-        .select( menu.current_tab)
+        .select(menu.current_tab)
         .style(Style::default().fg(Color::Gray))
         .highlight_style(
             Style::default()

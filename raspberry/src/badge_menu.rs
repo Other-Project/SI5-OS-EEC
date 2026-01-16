@@ -512,6 +512,10 @@ impl BadgeMenu {
 
 // Implement TuiMenuTrait for BadgeMenu
 impl TuiMenuTrait for BadgeMenu {
+    fn name(&self) -> &'static str {
+        "Badges"
+    }
+
     fn reset(&mut self) -> anyhow::Result<()> {
         self.badge_tab = BadgeTab::ListBadges;
         self.selected_item = 0;

@@ -16,8 +16,8 @@ impl LogMenu {
 }
 
 impl TuiMenuTrait for LogMenu {
-    fn reset(&mut self) -> anyhow::Result<()> {
-        Ok(())
+    fn name(&self) -> &'static str {
+        "Logs"
     }
 
     fn render(&self, f: &mut Frame, area: ratatui::layout::Rect) {
@@ -38,17 +38,5 @@ impl TuiMenuTrait for LogMenu {
                 .border_style(Style::default().fg(Color::DarkGray)),
         );
         f.render_widget(list, area);
-    }
-
-    fn poll(&mut self) -> anyhow::Result<()> {
-        Ok(())
-    }
-
-    fn key_help(&self) -> Option<String> {
-        None
-    }
-
-    fn handle_key(&mut self, _: crossterm::event::KeyCode) -> anyhow::Result<bool> {
-        Ok(false)
     }
 }

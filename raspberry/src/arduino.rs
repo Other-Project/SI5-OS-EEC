@@ -18,11 +18,11 @@ impl ArduinoI2C {
         })
     }
 
-    fn write_register(&mut self, reg: Register, value: u8) -> Result<()> {
+    fn write_register(&self, reg: Register, value: u8) -> Result<()> {
         self.write_registers(reg, &[value])
     }
 
-    fn write_registers(&mut self, start_reg: Register, values: &[u8]) -> Result<()> {
+    fn write_registers(&self, start_reg: Register, values: &[u8]) -> Result<()> {
         let checksum: u8 = values.iter().fold(0u16, |acc, &b| acc + b as u16) as u8;
         let mut buf = Vec::with_capacity(2 + values.len() + 1);
         buf.push(start_reg as u8 & !READ_FLAG);
@@ -41,7 +41,7 @@ impl ArduinoI2C {
         Ok(())
     }
 
-    fn read_register(&mut self, reg: Register) -> Result<u8> {
+    fn read_register(&self, reg: Register) -> Result<u8> {
         self.read_registers(reg, 1).map(|vals| {
             vals.get(0)
                 .cloned()
@@ -49,7 +49,7 @@ impl ArduinoI2C {
         })?
     }
 
-    fn read_registers(&mut self, start_reg: Register, count: u8) -> Result<Vec<u8>> {
+    fn read_registers(&self, start_reg: Register, count: u8) -> Result<Vec<u8>> {
         let mut bus = self.bus.lock().unwrap();
         let write_count = bus.write(&[start_reg as u8 | READ_FLAG, count])?; // Request read
         if write_count != 2 {
@@ -87,27 +87,27 @@ impl ArduinoI2C {
         }
     }
 
-    pub fn get_system_state(&mut self) -> Result<SecurityState> {
+    pub fn get_system_state(&self) -> Result<SecurityState> {
         let val = self.read_register(Register::Status)?;
         SecurityState::try_from(val).map_err(anyhow::Error::msg)
     }
 
-    pub fn set_system_state(&mut self, state: SecurityState) -> Result<()> {
+    pub fn set_system_state(&self, state: SecurityState) -> Result<()> {
         self.write_register(Register::Status, state as u8)
     }
 
-    pub fn get_events(&mut self) -> Result<Events> {
+    pub fn get_events(&self) -> Result<Events> {
         self.read_register(Register::Events)
             .map(Events::from_bits_truncate)
     }
 
-    pub fn read_rfid_uid(&mut self) -> Result<String> {
+    pub fn read_rfid_uid(&self) -> Result<String> {
         let values = self.read_registers(Register::Rfid, 6)?;
         let hex: String = values.iter().map(|b| format!("{:02X}", b)).collect();
         Ok(hex)
     }
 
-    pub fn get_all_registers(&mut self) -> Result<Vec<u8>> {
+    pub fn get_all_registers(&self) -> Result<Vec<u8>> {
         self.read_registers(Register::Status,  Register::UltrasonicDistance as u8 + 1)
     }
 }
