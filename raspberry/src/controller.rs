@@ -6,7 +6,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::arduino::ArduinoI2C;
 use crate::arduino_consts::Events;
 use crate::arduino_consts::SecurityState;
-use crate::lcd::GroveLcd;
 use crate::badges::BadgeManager;
 
 // Config
@@ -16,8 +15,7 @@ const RFID_TIMEOUT_SECS: u64 = 5; // Reset RFID after 5 seconds
 
 pub struct AlarmController {
     arduino: ArduinoI2C,
-    screen: GroveLcd,
-    current_state: SecurityState,
+    pub current_state: SecurityState,
     last_events: Events,
     last_rfid: Option<String>,
     last_rfid_time: u64,
@@ -30,15 +28,11 @@ impl AlarmController {
         debug!("Initial registers: {:?}", arduino.get_all_registers()?);
         let current_state = arduino.get_system_state()?;
 
-        let screen = GroveLcd::new()?;
-        screen.clear()?;
-
         let badge_manager = BadgeManager::new(BADGE_DB_PATH)?;
         badge_manager.cleanup_expired_badges()?;
 
         Ok(Self {
             arduino,
-            screen,
             current_state,
             last_events: Events::empty(),
             last_rfid: None,
@@ -110,13 +104,6 @@ impl AlarmController {
             }
         }
 
-        if old_state != self.current_state {
-            self.screen.clear()?;
-            self.screen.set_cursor(0, 0)?;
-            self.screen
-                .print(format!("{:?}", self.current_state).as_str())?;
-        }
-        
         Ok(())
     }
 
@@ -128,12 +115,8 @@ impl AlarmController {
         &self.badge_manager
     }
 
-    pub fn state_icon(&self) -> &'static str {
-        match self.current_state {
-            SecurityState::Disarmed => "🟢 DISARMED",
-            SecurityState::Armed => "🛑 ARMED",
-            SecurityState::Triggered => "🚨 ALARM",
-        }
+    pub fn state(&self) -> SecurityState {
+        self.current_state
     }
 
     pub fn motion_str(&self) -> &'static str {

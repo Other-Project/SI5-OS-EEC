@@ -7,7 +7,6 @@
 #include "drivers/buzzer/buzzer.h"
 #include "drivers/ultrasonic/ultrasonic.h"
 #include "drivers/button/button.h"
-#include "drivers/rotary_angle/rotary_angle.h"
 #include "drivers/i2c/i2c.h"
 #include "consts.h"
 #include <event_groups.h>

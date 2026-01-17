@@ -19,8 +19,10 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+use crate::arduino_consts::SecurityState;
 use crate::config_menu::ConfigMenu;
 use crate::controller::AlarmController;
+use crate::lcd_controller::LcdController;
 use crate::menu::Menu;
 use crate::tui_logger::init_logger;
 use crate::{badge_menu::BadgeMenu, log_menu::LogMenu};
@@ -32,6 +34,7 @@ mod badges;
 mod config_menu;
 mod controller;
 mod lcd;
+mod lcd_controller;
 mod log_menu;
 mod menu;
 mod tui_logger;
@@ -88,6 +91,7 @@ fn main() -> Result<()> {
 
 fn run_app(terminal: &mut Option<Terminal<CrosstermBackend<io::Stdout>>>) -> Result<()> {
     let controller = Rc::new(RefCell::new(AlarmController::new()?));
+    let mut lcd_controller = LcdController::new(controller.clone())?;
     let mut menu = if terminal.is_some() {
         Some(Menu::new(vec![
             Box::new(LogMenu::new()),
@@ -120,6 +124,10 @@ fn run_app(terminal: &mut Option<Terminal<CrosstermBackend<io::Stdout>>>) -> Res
             .borrow_mut()
             .poll()
             .unwrap_or_else(|e| log::error!("Controller error: {}", e));
+
+        lcd_controller
+            .poll()
+            .unwrap_or_else(|e| log::error!("LCD controller error: {}", e));
 
         if let Some(ref mut menu_instance) = menu {
             menu_instance
@@ -161,7 +169,11 @@ fn render_status_bar(f: &mut Frame, controller: &AlarmController, area: ratatui:
         .split(area);
 
     let status_items = [
-        (" State ", controller.state_icon(), Color::White),
+        (" State ", match controller.state() {
+            SecurityState::Disarmed => "🟢 DISARMED",
+            SecurityState::Armed => "🛑 ARMED",
+            SecurityState::Triggered => "🚨 ALARM",
+        }, Color::White),
         (" Motion ", controller.motion_str(), Color::White),
         (" Button ", controller.btn_str(), Color::White),
         (
