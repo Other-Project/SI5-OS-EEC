@@ -23,6 +23,7 @@ void I2C_Protocol::init(uint8_t slave_address)
     Wire.onRequest(onRequestHandler);
 }
 
+// Register callback (runs in ISR context)
 void I2C_Protocol::registerCallback(I2CCallback callback)
 {
     g_register_callback = callback;
@@ -57,10 +58,6 @@ uint8_t I2C_Protocol::getRegister(uint8_t reg)
     return value;
 }
 
-// ---------------------------------------------------------
-// HANDLERS (Must be fast, No Serial, No Blocked Waits)
-// ---------------------------------------------------------
-
 void I2C_Protocol::onReceiveHandler(int numBytes)
 {
     if (numBytes < 2)
@@ -71,7 +68,7 @@ void I2C_Protocol::onReceiveHandler(int numBytes)
     uint8_t ptr_byte = Wire.read();
     uint8_t val_byte = Wire.read();
 
-    // CASE A: Setup for Read (Pointer | 0x80)
+    // Read Request
     if (ptr_byte & READ_FLAG)
     {
         g_register_pointer = ptr_byte & ~READ_FLAG;
@@ -83,9 +80,9 @@ void I2C_Protocol::onReceiveHandler(int numBytes)
         return;
     }
 
-    // CASE B: Write Data
+    // Write Request
     int data_len = numBytes - 2;
-    if (data_len > I2C_NUM_REGISTERS || data_len < 0)
+    if (data_len > I2C_NUM_REGISTERS - ptr_byte || data_len < 0)
     {
         taskEXIT_CRITICAL();
         return;
@@ -107,21 +104,15 @@ void I2C_Protocol::onReceiveHandler(int numBytes)
 
     // Apply Changes
     for (int i = 0; i < data_len; i++)
-        setRegisterInternal(g_register_pointer + i, values[i]);
-
-    uint8_t start_reg = g_register_pointer;
-    // Reset State
-    g_register_pointer = 0;
-    g_read_count = 0;
+        setRegisterInternal(ptr_byte + i, values[i]);
 
     taskEXIT_CRITICAL();
 
-    // --- Interrupts Enabled Here ---
-    // Trigger Callback (Careful: this runs in ISR context!)
+    // Trigger Callback
     if (g_register_callback)
     {
         for (int i = 0; i < data_len; i++)
-            g_register_callback(start_reg + i, values[i]);
+            g_register_callback(ptr_byte + i, values[i]);
     }
 }
 

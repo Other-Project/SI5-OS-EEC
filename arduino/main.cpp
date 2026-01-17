@@ -67,6 +67,7 @@ void onStatusChange(uint8_t newStatus)
         break;
 
     default:
+        Serial.println("Unknown status");
         break;
     }
 }
