@@ -33,6 +33,7 @@ mod badge_menu;
 mod badges;
 mod config_menu;
 mod controller;
+mod grovepi;
 mod lcd;
 mod lcd_controller;
 mod log_menu;
@@ -169,11 +170,15 @@ fn render_status_bar(f: &mut Frame, controller: &AlarmController, area: ratatui:
         .split(area);
 
     let status_items = [
-        (" State ", match controller.state() {
-            SecurityState::Disarmed => "🟢 DISARMED",
-            SecurityState::Armed => "🛑 ARMED",
-            SecurityState::Triggered => "🚨 ALARM",
-        }, Color::White),
+        (
+            " State ",
+            match controller.state() {
+                SecurityState::Disarmed => "🟢 DISARMED",
+                SecurityState::Armed => "🛑 ARMED",
+                SecurityState::Triggered => "🚨 ALARM",
+            },
+            Color::White,
+        ),
         (" Motion ", controller.motion_str(), Color::White),
         (" Button ", controller.btn_str(), Color::White),
         (
