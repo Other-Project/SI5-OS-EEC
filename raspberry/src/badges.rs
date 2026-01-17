@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use log::{debug, info};
 use rusqlite::{params, Connection, OptionalExtension};
 
+#[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct Badge {
     pub id: i32,

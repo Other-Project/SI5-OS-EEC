@@ -2,8 +2,9 @@ use rppal::i2c::I2c;
 use std::sync::Mutex;
 use anyhow::Result;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration};
 
+#[allow(unused)]
 pub enum GrovePiCommand {
     DigitalRead = 1,
     DigitalWrite = 2,
@@ -12,6 +13,7 @@ pub enum GrovePiCommand {
     PinMode = 5,
 }
 
+#[allow(unused)]
 pub enum GrovePiPinMode {
     Input = 0,
     Output = 1,
@@ -21,6 +23,7 @@ pub struct GrovePi {
     bus: Mutex<I2c>,
 }
 
+#[allow(unused)]
 impl GrovePi {
     pub fn new(addr: u16) -> Result<Self> {
         let mut bus = I2c::new()?;
