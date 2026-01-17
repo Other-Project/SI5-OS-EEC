@@ -19,6 +19,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+use crate::config_menu::ConfigMenu;
 use crate::controller::AlarmController;
 use crate::menu::Menu;
 use crate::tui_logger::init_logger;
@@ -28,6 +29,7 @@ mod arduino;
 mod arduino_consts;
 mod badge_menu;
 mod badges;
+mod config_menu;
 mod controller;
 mod lcd;
 mod log_menu;
@@ -90,6 +92,7 @@ fn run_app(terminal: &mut Option<Terminal<CrosstermBackend<io::Stdout>>>) -> Res
         Some(Menu::new(vec![
             Box::new(LogMenu::new()),
             Box::new(BadgeMenu::new(controller.clone())),
+            Box::new(ConfigMenu::new(controller.clone())),
         ]))
     } else {
         None
@@ -211,7 +214,7 @@ fn render_main_content(
         );
     f.render_widget(tabs, chunks[0]);
 
-        let help_text = menu.get_bottom_help();
+    let help_text = menu.get_bottom_help();
     menu.render(f, chunks[1]);
 
     render_help_bar(f, help_text, chunks[2]);

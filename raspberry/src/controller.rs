@@ -155,4 +155,12 @@ impl AlarmController {
     pub fn get_last_rfid(&self) -> Option<&str> {
         self.last_rfid.as_deref()
     }
+
+    pub fn get_ultrasonic_distance(&self) -> Result<f32> {
+        self.arduino.read_ultrasonic_distance()
+    }
+
+    pub fn set_ultrasonic_distance(&self, distance: f32) -> Result<()> {
+        self.arduino.set_ultrasonic_distance(distance)
+    }
 }

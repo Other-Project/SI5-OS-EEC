@@ -107,6 +107,15 @@ impl ArduinoI2C {
         Ok(hex)
     }
 
+    pub fn read_ultrasonic_distance(&self) -> Result<f32> {
+        let val = self.read_register(Register::UltrasonicDistance)?;
+        Ok(val as f32 / 2.0)
+    }
+
+    pub fn set_ultrasonic_distance(&self, distance: f32) -> Result<()> {
+        self.write_register(Register::UltrasonicDistance, (distance * 2.0) as u8)
+    }
+
     pub fn get_all_registers(&self) -> Result<Vec<u8>> {
         self.read_registers(Register::Status,  Register::UltrasonicDistance as u8 + 1)
     }
