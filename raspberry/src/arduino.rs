@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rppal::i2c::I2c;
-use std::sync::Mutex;
+use std::{sync::Mutex, thread, time::Duration};
 
 use crate::arduino_consts::{Events, Register, SecurityState};
 const READ_FLAG: u8 = 0x80;
@@ -58,6 +58,8 @@ impl ArduinoI2C {
                 write_count
             ));
         }
+
+        thread::sleep(Duration::from_micros(500)); // Wait for Arduino to prepare data
 
         let mut buf = vec![0u8; count as usize + 1]; // +1 for checksum
         let read_count = bus.read(&mut buf)?;

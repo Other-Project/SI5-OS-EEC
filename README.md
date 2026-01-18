@@ -40,7 +40,7 @@ Ce système comprend :
 |   D6    |   Buzzer   |                 |
 |   D7    |    RFID    |                 |
 |         |   Rotary   |       A0        |
-|         |   Button   |       D2        |
+|         |   Button   |       A1        |
 |         |   Screen   |      I2C-2      |
 |   I2C   |            |      I2C-1      |
 

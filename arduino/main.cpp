@@ -136,7 +136,8 @@ static void vUltrasonicTask(void *pvParameters)
         uint16_t max_distance_mm = I2C_Protocol::getRegister(REG_ULTRASONIC_DISTANCE) * 5;
         bool motion = distance_mm > max_distance_mm;
         setEventFlag(EVENT_MOTION_DETECTED, motion);
-        if(motion){
+        if (motion)
+        {
             I2C_Protocol::setRegister(REG_STATUS, STATUS_TRIGGERED);
             onStatusChange(STATUS_TRIGGERED);
         }
@@ -164,24 +165,26 @@ static void vReadRfid(void *pvParameters)
 
                 // Set RFID read event
                 setEventFlag(EVENT_RFID_READ, true);
-                vTaskDelay(100 / portTICK_PERIOD_MS);
+                vTaskDelayUntil(&xLastWakeUpTime, 200 / portTICK_PERIOD_MS);
                 continue;
             }
         }
-        vTaskDelayUntil(&xLastWakeUpTime, 100 / portTICK_PERIOD_MS);
+        vTaskDelayUntil(&xLastWakeUpTime, 50 / portTICK_PERIOD_MS);
     }
 }
 
 static void vButtonTask(void *pvParameters)
 {
+    TickType_t xLastWakeUpTime = xTaskGetTickCount();
     while (1)
     {
         setEventFlag(EVENT_BTN_PRESSED, button.isPressed());
-        if(button.isPressed() && I2C_Protocol::getRegister(REG_STATUS) == STATUS_DISARMED){
+        if (button.isPressed() && I2C_Protocol::getRegister(REG_STATUS) == STATUS_DISARMED)
+        {
             I2C_Protocol::setRegister(REG_STATUS, STATUS_ARMED);
             onStatusChange(STATUS_ARMED);
         }
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelayUntil(&xLastWakeUpTime, 50 / portTICK_PERIOD_MS);
     }
 }
 
