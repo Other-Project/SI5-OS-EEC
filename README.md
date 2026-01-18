@@ -3,23 +3,32 @@
 <p align=center>
     <span>Project realized by <a href="https://github.com/ElianDELMAS">Elian Delmas</a>, <a href="https://github.com/06Games">Evan Galli</a> and <a href="https://github.com/eliotmnrt">Eliot Menoret</a>
     <br/>as part of the <b>Embedded OS and Edge Computing</b> course.</span>
+    <br/>
+    <br/><img src="https://github.com/user-attachments/assets/da2318a8-abe4-407c-b81d-fce52d4501f2" width="50%" />
 </p>
 
 ## Introduction
 
-Ce projet consiste en un système d'alarme intelligent pour une maison. En cas de détection d'une présence dans la maison alors que l'alarme est activée, une signal sonore s'activera dans la maison pour effrayer l’intrus. Il sera possible pour l'habitant d'activer son alarme lorsqu'il sort de chez lui, puis de la désactiver en revenant avec un badge RFID personnel.
-En plus de cela, l'habitant aura la possibilité d'ajouter de nouveaux badges RFID qu'il pourra donner à ses proches pour que ces derniers puissent eux-même désactiver l'alarme. De manière similaire, il pourra également révoquer des badges RFID pour qu'ils ne puissent plus être utilisés pour désactiver l'alarme. Ces opérations seront réalisées directement au niveau de la Raspberry Pi (Edge).
+This project implements a smart home alarm system designed around an Edge Computing architecture. Instead of centralizing all logic on a single device, the system adopts a distributed heterogeneous approach to optimize cognitive load and resource management.
 
-Ce système comprend :
+The architecture separates real-time constraints from high-level supervision:
 
-- un capteur ultrason pour détecter une présence dans la maison
-- un bouton permettant à l'habitant d'activer son alarme lorsqu'il s'absente
-- un lecteur RFID (récupéré auprès de vous) pour que l'habitant s'identifie et désactive l'alarme lorsqu'il rentre chez lui
-- une LED pour signaler si l'alarme est activée ou non
-- un buzzer qui va émettre un son en cas de détection d'une présence dans la maison lorsque l'alarme est activée
-- un afficheur LCD pour permettre à l'habitant de gérer les badges RFID acceptés pour désactiver l'alarme
-- un potentiomètre et un encodeur de souris (récupéré auprès de vous) utilisé pour naviguer sur l'afficheur LCD entre les modes d'ajout et de révocation de badges RFID
-- un bouton pour sélectionner le mode d'ajout ou de révocation sur l'afficheur LCD pour ajouter ou révoquer un badge RFID
+* The Microcontroller (Arduino with FreeRTOS): Acts as an intelligent acquisition unit. It encapsulates hardware complexity and signal processing to expose only qualified events rather than raw data.
+
+* The Gateway (Raspberry Pi 3B+ with Raspbian): Handles system supervision, data persistence, and the user interface. Liberated from low-level polling tasks, it manages the badge database and high-level logic using a robust Rust application.
+
+Functionally, the system detects intrusions using an ultrasonic sensor and triggers audio-visual alerts (Buzzer/LED) when armed. Users can arm the system via a physical button and disarm it using authorized RFID badges. Management operations, such as adding or revoking access badges, are performed locally via an LCD interface or on the Raspberry Pi using a TUI.
+
+<table>
+    <tr>
+        <td><img width="603" height="76" alt="image" src="https://github.com/user-attachments/assets/b187d31e-57d9-4d95-bffb-f8d696937f72" /></td>
+        <td><img width="1920" height="963" alt="image4" src="https://github.com/user-attachments/assets/6a4be3e2-a6e3-4360-99b3-8e1d7611c1c4" /></td>
+    </tr>
+    <tr>
+        <td><img width="1920" height="963" alt="image2" src="https://github.com/user-attachments/assets/c0fa5978-1a22-49a8-ad71-ad33fee065fd" /></td>
+        <td><img width="1920" height="963" alt="image3" src="https://github.com/user-attachments/assets/0dacfec1-3f24-4413-ae76-8410463d65c0" /></td>
+    </tr>
+</table>
 
 ## Instructions
 
