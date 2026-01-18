@@ -34,7 +34,7 @@
 = Introduction
 
 // 1. Éléments Factuels (Contexte)
-Dans l'architecture des systèmes de l'Internet des Objets (IoT), la tendance est au "Edge Computing", c'est-à-dire le traitement de la donnée au plus près du capteur. Plutôt que de centraliser toute la logique, on combine des microcontrôleurs capables d'interagir finement avec le réel, et des nano-ordinateurs qui disposent de la connectivité nécessaire pour agir comme passerelle vers le monde extérieur (réseau, interfaces utilisateur).
+Dans l'architecture des systèmes de l'Internet des Objets (IoT), la tendance est au "Edge Computing", c'est-à-dire le traitement de la donnée au plus près du capteur. Plutôt que de centraliser toute la logique, on combine des microcontrôleurs, capables d'interagir finement avec le réel, et des nano-ordinateurs, qui disposent de la connectivité nécessaire pour agir comme passerelle vers le monde extérieur (réseau, interfaces utilisateur).
 
 #v(1em)
 
@@ -53,7 +53,7 @@ Ce projet répond à cette problématique par une architecture hiérarchisée o�
 #v(1em)
 
 // 4. Impacts de la solution
-Cette séparation transforme l'Arduino en un composant autonome qui offre une abstraction matérielle. Cela fiabilise le système : la détection est assurée par un OS temps réel sur microcontrôleur, tandis que la communication est gérée par la passerelle. Cette architecture rationalise les échanges sur le bus I#super[2]C : plutôt qu'un scrutage continu ("polling") des états bruts des capteurs, la communication se limite à la transmission d'événements asynchrones qualifiés, libérant ainsi les ressources de la passerelle pour les tâches de supervision.
+Cette séparation transforme l'Arduino en un composant autonome qui offre une abstraction matérielle. Cela fiabilise le système : la détection est assurée par un OS temps réel sur microcontrôleur, tandis que la communication est gérée par la passerelle. Cette architecture rationalise les échanges sur le bus I#super[2]C. En effet, plutôt qu'une scrutation continue ("polling") des états bruts des capteurs, la communication se limite à la transmission d'événements asynchrones qualifiés, libérant ainsi les ressources de la passerelle pour les tâches de supervision.
 
 #pagebreak()
 
@@ -71,9 +71,9 @@ L'architecture retenue repose sur une approche distribuée hétérogène. Plutô
 
 L'interface avec l'environnement physique immédiat est assurée par un ensemble de périphériques branchés sur un hat #text(lang: "en")[_Base Shield V2_] et pilotés par le microcontrôleur :
 
-- L'authentification repose sur un module RFID #text(lang: "en")[_(Grove 125kHz RFID Reader)_] pour l'identification des badges. Le traitement de ces données est délégué à la Raspberry Pi, qui centralise la base de données des badges et gère la validation nécessaires au désarmement du système.
+- L'authentification repose sur un module RFID #text(lang: "en")[_(Grove 125kHz RFID Reader)_] pour l'identification des badges. Le traitement de ces données est délégué à la Raspberry Pi, qui centralise la base de données des badges et gère la validation nécessaire au désarmement du système.
 
-- La surveillance d'intrusion est confiée à un capteur de distance à ultrasons #text(lang: "en")[_(Grove Ultrasonic Distance Sensor v2.0)_]. Celui-ci mesure en continu la distance face au capteur et l'augmentation au dessus d'un seuil est interprétée comme une intrusion (par ouverture de porte ou de fenêtre).
+- La surveillance d'intrusion est confiée à un capteur de distance à ultrasons #text(lang: "en")[_(Grove Ultrasonic Distance Sensor v2.0)_]. Celui-ci mesure en continu la distance face au capteur et l'augmentation au-dessus d'un seuil est interprétée comme une intrusion (par ouverture de porte ou de fenêtre).
 
 - Un bouton poussoir permet d'armer l'alarme, tandis qu'une diode électroluminescente (LED) et un buzzer fournissent respectivement un retour visuel de l'état (Armé/Désarmé) et un signal sonore dissuasif en cas d'alerte.
 
@@ -99,8 +99,8 @@ Afin de prévenir toute corruption par du bruit électromagnétique, un mécanis
 #v(2em)
 
 Pour envoyer une commande ou des données, la Raspberry Pi transmet une trame structurée contenant l'index du registre, le checksum de validation et la charge utile :
-$"Trame"=["REG_ID"]["CHECKSUM"]["DATA"_0​..."DATA"_n​]$
-- `REG_ID` : Index du registre cible
+$"Trame"=["REG_START"]["CHECKSUM"]["DATA"_0​..."DATA"_n​]$
+- `REG_START` : Index du premier registre cible.
 - `CHECKSUM` : Somme des octets de données pour validation.
 - `DATA` : Charge utile de longueur variable.
 
@@ -122,8 +122,8 @@ $"Trame"=["REG_ID"]["CHECKSUM"]["DATA"_0​..."DATA"_n​]$
 #v(2em)
 
 La lecture est une opération plus complexe qui s'effectue en deux temps, car l'Arduino doit savoir à l'avance quelles données envoyer.
-- La Pi effectue tout d'abord une écriture pour indiquer quel registre elle souhaite lire et le nombre d'octets attendus. Le bit de poids fort de l'adresse est forcé à 1 (par un masque 0x80) pour signaler qu'il s'agit d'une préparation à la lecture et non d'une écriture standard. Les registres étant peu nombreux, le 8ème bit est libre peut servir de drapeau. \
-  $"Trame"=["REG_ID" ∣ "0x80"]["COUNT"]$
+- La Pi effectue tout d'abord une écriture pour indiquer quel(s) registre(s) elle souhaite lire et le nombre d'octets attendus. Le bit de poids fort de l'adresse est forcé à 1 (par un masque `0x80`) pour signaler qu'il s'agit d'une préparation à la lecture et non d'une écriture standard. Les registres étant peu nombreux, le 8ème bit est libre pour servir de drapeau. \
+  $"Trame"=["REG_START" ∣ "0x80"]["COUNT"]$
 - La Pi initie ensuite la lecture sur le bus. L'Arduino renvoie alors les données demandées suivies de leur checksum. \
     $"Trame"=["DATA"_0​..."DATA"_n​]["CHECKSUM"]$
 
@@ -153,7 +153,7 @@ La lecture est une opération plus complexe qui s'effectue en deux temps, car l'
   )
 )
 
-Ce protocole en deux étapes impose une synchronisation stricte : l'Arduino doit impérativement avoir traité la demande de préparation avant que la Raspberry Pi ne lance la lecture. Une latence trop élevée entraînerait la récupération de données invalides. Pour pallier ce risque, le code des interruptions de l'Arduino a maintenu aussi concis que possible afin de garantir la disponibilité de la lecture en quelques cycles d'horloge.
+Ce protocole en deux étapes impose une synchronisation stricte : l'Arduino doit impérativement avoir traité la demande de préparation avant que la Raspberry Pi ne lance la lecture. Une latence trop élevée entraînerait la récupération de données invalides. Pour pallier ce risque, le code des interruptions de l'Arduino a été maintenu aussi concis que possible afin de garantir la disponibilité de la lecture en quelques cycles d'horloge.
 
 De plus, l'accès au bus I#super[2]C physique devant être strictement contrôlé pour éviter les conflits, nous avons encapsulé le driver I#super[2]C dans un Mutex.
 
@@ -184,7 +184,7 @@ Le registre `0x00` pilote le comportement global du système. Lors d'une écritu
 
 #v(1em)
 
-Le registre `0x01` fonctionne comme un champ de bits. Cette méthode permet à l'Arduino de signaler plusieurs événements simultanés (ex: mouvement détecté pendant une lecture RFID) de manière compacte.
+Le registre `0x01` fonctionne comme un champ de bits. Cela permet à l'Arduino de signaler plusieurs événements simultanés (ex: mouvement détecté pendant une lecture RFID) de manière compacte.
 
 Les tâches FreeRTOS mettent à jour ce registre en temps réel. La structure du masque binaire est la suivante :
 - Bit 0 (en LSB) : Bouton pressé
@@ -218,7 +218,7 @@ L'application est structurée autour de quatre tâches principales, instanciées
 
 - Une tâche pour le bouton (`vButtonTask`) qui surveille l'état du bouton poussoir physique pour permettre l'armement du système. Elle assure aussi la mise à jour du drapeau `EVENT_BTN_PRESSED` dans les registres partagés.
 
-- Enfin, une tache pour l'alerte (`vBlinkTask`) qui est responsable du retour utilisateur. Elle le clignotement de la LED et l'activation du buzzer, avec une périodicité de 500 ms.
+- Enfin, une tâche pour l'alerte (`vBlinkTask`) qui est responsable du retour utilisateur. Elle gère le clignotement de la LED et l'activation du buzzer, avec une périodicité de 500 ms.
 
 === Synchronisation et Groupes d'Événements
 
@@ -230,7 +230,7 @@ Lorsque le statut est modifié, la fonction `onStatusChange` se charge de lever 
 
 Le passage en mode Armé réveille uniquement la tâche ultrason pour commencer la surveillance.
 
-Le passage en mode Déclenché active les drapeau `BIT_ULTRASONIC_ENABLE` et `BIT_BLINK_ENABLE` ce qui permet de réveiller la tâche de clignotement (LED/Buzzer) pour signaler l'intrusion et désactive la tâche ultrason.
+Le passage en mode Déclenché active les drapeaux `BIT_ULTRASONIC_ENABLE` et `BIT_BLINK_ENABLE` ce qui permet de réveiller la tâche de clignotement (LED/Buzzer) pour signaler l'intrusion et désactive la tâche ultrason.
 
 Cette architecture événementielle assure que le microcontrôleur consacre ses ressources uniquement aux fonctionnalités requises par l'état courant du système, maximisant ainsi la réactivité lors de la réception des interruptions I#super[2]C.
 
@@ -241,7 +241,7 @@ Enfin, la stabilité temporelle est assurée par l'utilisation de la fonction `v
 #box[
 Le système évolue entre trois états :
 - `Disarmed` (Veille): État de repos. Le capteur de mouvement est désactivé et les alertes sont éteintes.
-- `Armed` (Surveillance): Activé par le bouton. Le système surveille le capteur ultrason et déclenche l'alerte en cas de détection. La LED est allumé de manière continue.
+- `Armed` (Surveillance): Activé par le bouton. Le système surveille le capteur ultrason et déclenche l'alerte en cas de détection. La LED est allumée de manière continue.
 - `Triggered` (Alerte): Activé par une détection de mouvement. Le buzzer sonne et la LED clignote.
 ]
 
@@ -250,15 +250,13 @@ Le système évolue entre trois états :
 La machine à états est répartie entre les deux composants pour optimiser le fonctionnement du système : l'Arduino gère les transitions qui demandent de la réactivité, tandis que la Raspberry Pi gère celles qui nécessitent l'accès aux données (les badges).
 
 Pour les changements d'état simples, l'Arduino agit seul via ses tâches FreeRTOS, sans attendre la Raspberry Pi :
-- Armement (Désarmée → Armée) : L'appui sur le bouton est détecté localement par la tâche `vButtonTask`. Si le système est désarmé, l'Arduino passe directement le registre d'état à `STATUS_ARMED`. Ce qui active le tâche `vUltrasonicTask` de détection du mouvement au travers de la fonction `onStatusChange`.
-- Déclenchement (Armée → Déclenchée) : Si la tâche `vUltrasonicTask` détecte un mouvement alors que l'alarme est armée, elle modifie elle-même l'état vers `STATUS_TRIGGERED`. Cela active immédiatement le buzzer et la LED.
+- Armement (Désarmée → Armée) : L'appui sur le bouton est détecté localement par la tâche `vButtonTask`. Si le système est désarmé, l'Arduino passe directement le registre d'état à `STATUS_ARMED`. Ce qui active la tâche de détection du mouvement (`vUltrasonicTask`) au travers de la fonction `onStatusChange`.
+- Déclenchement (Armée → Déclenchée) : Si la tâche `vUltrasonicTask` détecte un mouvement alors que l'alarme est armée, elle modifie elle-même l'état vers `STATUS_TRIGGERED`. Cela active immédiatement le clignotement de la LED et le buzzer.
 
 Le retour à l'état "Désarmée" ne peut pas être décidé par l'Arduino seul, car il ne connaît pas la liste des badges autorisés.
 - L'Arduino se contente de lire le numéro du badge RFID et de l'écrire dans les registres partagés.
 - La Raspberry Pi lit ce numéro et vérifie s'il existe dans sa base de données SQLite.
 
-
-#v(1em)
   
 // --- Figure : Machine à États Finis ---
 #figure(caption: [Machine à états finis de l'alarme], diagram(
@@ -357,7 +355,7 @@ Pour les opérations courantes, telles que l'ajout ou la suppression standard de
 
 = Problèmes rencontrés
 
-Le premier défi a concerné la gestion de la mémoire sur l'Arduino. Bien que notre implémentation n'utilise pas d'allocation dynamique, évitant ainsi les problèmes d'instabilité ou de fragmentation, nous avons été confrontés à une limitation d'espace disponible. La configuration par défaut de FreeRTOS allouait une taille de tas (heap) trop importante par rapport aux capacités de l'ATmega328P, restreignant l'espace pour notre code. Nous avons donc réduit manuellement la configuration de FreeRTOS pour réduire l'emprunte mémoire.
+Le premier défi a concerné la gestion de la mémoire sur l'Arduino. Bien que notre implémentation n'utilise pas d'allocation dynamique, évitant ainsi les problèmes d'instabilité ou de fragmentation, nous avons été confrontés à une limitation d'espace disponible. La configuration par défaut de FreeRTOS allouait une taille de tas (heap) trop importante par rapport aux capacités de l'ATmega328P, restreignant l'espace pour notre code. Nous avons donc réduit manuellement la configuration de FreeRTOS pour réduire l'empreinte mémoire.
 Parallèlement, l'intégration matérielle sur la Raspberry Pi a nécessité le remplacement du shield GrovePi initial, incompatible avec notre version de carte, par un modèle GrovePi+. Sur ce dernier, nous avons constaté que si l'écriture sur les ports digitaux était parfaitement fonctionnelle, la lecture y était impossible (sans que nous puissions l'expliquer). Pour contourner cette défaillance, nous avons déplacé le bouton de navigation sur un port analogique et traité le signal par seuillage logiciel.
 
 
@@ -370,7 +368,7 @@ Enfin, la mise au point du système a mis en lumière les contraintes inhérente
 
 == Analyse critique
 
-Notre solution a permis de valider la pertinence d'une architecture distribuée pour l'IoT. La séparation des tâches entre le Raspberry Pi et l'Arduino a parfaitement rempli son rôle : la délégation de la gestion matérielle à FreeRTOS a assuré une détection fiable et réactive des capteurs, déchargeant le Raspberry Pi des contraintes temps réel. L'utilisation de Rust sur la passerelle a également offert une robustesse appréciable, garantissant la stabilité du processus de supervision sans les erreurs de mémoire courantes en C/C++. Le protocole de communication I#super[2]C personnalisé, bien que complexe à mettre au point, s'est révélé robuste grâce à l'implémentation des checksums et des mécanismes de synchronisation (Mutex), éliminant efficacement les erreurs de transmission et les races conditions.
+Notre solution a permis de valider la pertinence d'une architecture distribuée pour l'IoT. La séparation des tâches entre le Raspberry Pi et l'Arduino a parfaitement rempli son rôle : la délégation de la gestion matérielle à FreeRTOS a assuré une détection fiable et réactive des capteurs, déchargeant le Raspberry Pi des contraintes temps réel. L'utilisation de Rust sur la passerelle a également offert une robustesse appréciable, garantissant la stabilité du processus de supervision sans les erreurs de mémoire courantes en C/C++. Le protocole de communication I#super[2]C personnalisé, bien que complexe à mettre au point, s'est révélé robuste grâce à l'implémentation des checksums et des mécanismes de synchronisation (Mutex), éliminant efficacement les erreurs de transmission et les race conditions.
 
 Cependant, le système présente certaines limitations architecturales. La dépendance critique envers le Raspberry Pi pour la validation des badges constitue un point unique de défaillance : si la passerelle ou le bus I#super[2]C dysfonctionne, l'alarme ne peut plus être désarmée, même avec un badge valide. De plus, l'interface physique actuelle manque de sécurisation, permettant à quiconque d'accéder au menu de configuration via le bouton sans authentification préalable.
 
@@ -380,9 +378,9 @@ Bien que l'architecture distribuée actuelle démontre la pertinence du couplage
 
 - Une synchronisation périodique des identifiants des badges valides directement dans la mémoire non-volatile (EEPROM) de l'Arduino permettrait de décentraliser la décision d'authentification. Cette modification rendrait le microcontrôleur capable de valider un désarmement de manière autonome, garantissant ainsi la continuité du service même en cas de rupture de la communication I#super[2]C ou de défaillance logicielle de la passerelle.
 - Les fonctionnalités accessibles via l'écran LCD mériteraient d'être étendues.
-- L'accès au menu de configuration physique, actuellement libre via le bouton poussoir, devrait être sécurisé pour prévenir toute modification malveillante des paramètres. L'implémentation d'un mécanisme de verrouillage, requérant le scan d'un badge autorisé renforcerait considérablement la sécurité physique du dispositif.
+- L'accès au menu de configuration physique, actuellement libre via le bouton poussoir, devrait être sécurisé pour prévenir toute modification malveillante des paramètres. L'implémentation d'un mécanisme de verrouillage, requérant le scan d'un badge autorisé, renforcerait considérablement la sécurité physique du dispositif.
 - L'introduction d'une temporisation d'entrée est nécessaire pour adapter le système aux contraintes réelles d'installation. Actuellement, la détection de mouvement déclenche une alerte immédiate. L'ajout d'un état intermédiaire de « pré-alarme » offrirait un délai configurable à l'utilisateur légitime pour atteindre le lecteur RFID et s'authentifier avant l'activation sonore du buzzer.
-- La TUI pourrait être découplée du daemon et utiliser un protocole réseau pour échanger avec celui-ci.
+- La TUI pourrait être découplée du démon et utiliser un protocole réseau pour échanger avec celui-ci.
 
 == Répartition du travail
 
@@ -390,4 +388,4 @@ Le travail a été mené de manière collaborative par l'ensemble du groupe, not
 
 == Utilisation de l'IA générative
 
-Dans le cadre de ce projet, nous avons eu recours à des outils d'intelligence artificielle générative comme support de développement. Ces outils ont été utilisés pour accélérer l'écriture de portions de code standard et aider au débogage. Ils ont aussi été utilisé pour améliorer la qualité rédactionnelle du rapport. La conception de l'architecture, la logique métier et la validation finale du système restent le fruit de notre propre travail.
+Dans le cadre de ce projet, nous avons eu recours à des outils d'intelligence artificielle générative comme support de développement. Ces outils ont été utilisés pour accélérer l'écriture de portions de code standard et aider au débogage. Ils ont aussi été utilisés pour améliorer la qualité rédactionnelle du rapport. La conception de l'architecture, la logique métier et la validation finale du système restent le fruit de notre propre travail.
