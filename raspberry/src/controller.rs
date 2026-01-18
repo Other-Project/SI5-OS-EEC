@@ -1,5 +1,7 @@
 use anyhow::Result;
+use discord_webhook_lib::DiscordMessage;
 use log::debug;
+use log::error;
 use log::info;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -73,7 +75,7 @@ impl AlarmController {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
-            
+
             // Check if badge is valid using database
             match self.badge_manager.is_valid_badge(&uid) {
                 Ok(true) => {
@@ -84,7 +86,7 @@ impl AlarmController {
                         }
                         new_state = Some(SecurityState::Disarmed);
                     }
-                },
+                }
                 _ => {
                     info!("⚠️ ACCESS DENIED: Unknown or disabled badge {}", uid);
                 }
@@ -95,6 +97,17 @@ impl AlarmController {
         if old_state == SecurityState::Armed && events.contains(Events::MOTION_DETECTED) {
             info!("🚨 INTRUSION DETECTED! ALARM!");
             new_state = Some(SecurityState::Triggered);
+
+            let mut builder = DiscordMessage::builder("https://discord.com/api/webhooks/1462535169779957904/KMjxbYxz6YSAeqNAY5n3WjWbX0NNIEb75XGcv5y2UwcUvVlGfFNic8iRWLHI_ze62Y7r");
+            builder.add_field("username", "Alarm System");
+            builder.add_field("content", "🚨 INTRUSION DETECTED! ALARM!");
+            let dhm = builder.build();
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                if let Err(e) = dhm.send().await {
+                    error!("Failed to send Discord alert: {}", e);
+                }
+            });
         }
 
         if let Some(state) = new_state {
