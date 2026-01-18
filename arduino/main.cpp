@@ -30,7 +30,7 @@ static TaskHandle_t xBlinkHandle = NULL;
 static RFID_Reader rfid(7, 8);
 static Buzzer buzzer(&DDRD, &PORTD, _BV(PD6));
 static Buzzer led(&DDRD, &PORTD, _BV(PD5));
-static Button button(&PIND, &DDRD, &PORTD, _BV(PD2));
+static Button button(2);
 
 void setEventFlag(uint8_t event, bool enable)
 {
@@ -178,11 +178,13 @@ static void vButtonTask(void *pvParameters)
     TickType_t xLastWakeUpTime = xTaskGetTickCount();
     while (1)
     {
-        setEventFlag(EVENT_BTN_PRESSED, button.isPressed());
-        if (button.isPressed() && I2C_Protocol::getRegister(REG_STATUS) == STATUS_DISARMED)
+        setEventFlag(EVENT_BTN_PRESSED, false);
+        if (button.waitForPress())
         {
+            setEventFlag(EVENT_BTN_PRESSED, true);
             I2C_Protocol::setRegister(REG_STATUS, STATUS_ARMED);
             onStatusChange(STATUS_ARMED);
+            xLastWakeUpTime = xTaskGetTickCount();
         }
         vTaskDelayUntil(&xLastWakeUpTime, 50 / portTICK_PERIOD_MS);
     }
