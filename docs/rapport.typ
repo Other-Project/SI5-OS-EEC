@@ -370,7 +370,9 @@ Enfin, la mise au point du système a mis en lumière les contraintes inhérente
 
 == Analyse critique
 
-#highlight(fill:red)[ avantages et inconvénients de notre architecture]
+Notre solution a permis de valider la pertinence d'une architecture distribuée pour l'IoT. La séparation des tâches entre le Raspberry Pi et l'Arduino a parfaitement rempli son rôle : la délégation de la gestion matérielle à FreeRTOS a assuré une détection fiable et réactive des capteurs, déchargeant le Raspberry Pi des contraintes temps réel. L'utilisation de Rust sur la passerelle a également offert une robustesse appréciable, garantissant la stabilité du processus de supervision sans les erreurs de mémoire courantes en C/C++. Le protocole de communication I#super[2]C personnalisé, bien que complexe à mettre au point, s'est révélé robuste grâce à l'implémentation des checksums et des mécanismes de synchronisation (Mutex), éliminant efficacement les erreurs de transmission et les races conditions.
+
+Cependant, le système présente certaines limitations architecturales. La dépendance critique envers le Raspberry Pi pour la validation des badges constitue un point unique de défaillance : si la passerelle ou le bus I#super[2]C dysfonctionne, l'alarme ne peut plus être désarmée, même avec un badge valide. De plus, l'interface physique actuelle manque de sécurisation, permettant à quiconque d'accéder au menu de configuration via le bouton sans authentification préalable.
 
 == Évolutions pertinentes
 
@@ -380,7 +382,12 @@ Bien que l'architecture distribuée actuelle démontre la pertinence du couplage
 - Les fonctionnalités accessibles via l'écran LCD mériteraient d'être étendues.
 - L'accès au menu de configuration physique, actuellement libre via le bouton poussoir, devrait être sécurisé pour prévenir toute modification malveillante des paramètres. L'implémentation d'un mécanisme de verrouillage, requérant le scan d'un badge autorisé renforcerait considérablement la sécurité physique du dispositif.
 - L'introduction d'une temporisation d'entrée est nécessaire pour adapter le système aux contraintes réelles d'installation. Actuellement, la détection de mouvement déclenche une alerte immédiate. L'ajout d'un état intermédiaire de « pré-alarme » offrirait un délai configurable à l'utilisateur légitime pour atteindre le lecteur RFID et s'authentifier avant l'activation sonore du buzzer.
+- La TUI pourrait être découplée du daemon et utiliser un protocole réseau pour échanger avec celui-ci.
 
 == Répartition du travail
 
-#highlight(fill:red)[ todo]
+Le travail a été mené de manière collaborative par l'ensemble du groupe, notamment en ce qui concerne le développement Arduino et la rédaction de ce rapport, auxquels les trois membres ont contribué. Evan a cependant pris en charge plus spécifiquement le développement de l'application de supervision en Rust sur la Raspberry Pi, assurant ainsi l'intégration de la logique haut niveau.
+
+== Utilisation de l'IA générative
+
+Dans le cadre de ce projet, nous avons eu recours à des outils d'intelligence artificielle générative comme support de développement. Ces outils ont été utilisés pour accélérer l'écriture de portions de code standard et aider au débogage. Ils ont aussi été utilisé pour améliorer la qualité rédactionnelle du rapport. La conception de l'architecture, la logique métier et la validation finale du système restent le fruit de notre propre travail.
