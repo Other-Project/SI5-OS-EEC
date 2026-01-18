@@ -21,12 +21,12 @@ Functionally, the system detects intrusions using an ultrasonic sensor and trigg
 
 <table>
     <tr>
-        <td><img width="603" height="76" alt="image" src="https://github.com/user-attachments/assets/b187d31e-57d9-4d95-bffb-f8d696937f72" /></td>
-        <td><img width="1920" height="963" alt="image4" src="https://github.com/user-attachments/assets/6a4be3e2-a6e3-4360-99b3-8e1d7611c1c4" /></td>
+        <td><img alt="image" src="https://github.com/user-attachments/assets/b187d31e-57d9-4d95-bffb-f8d696937f72" /></td>
+        <td><img alt="image4" src="https://github.com/user-attachments/assets/6a4be3e2-a6e3-4360-99b3-8e1d7611c1c4" /></td>
     </tr>
     <tr>
-        <td><img width="1920" height="963" alt="image2" src="https://github.com/user-attachments/assets/c0fa5978-1a22-49a8-ad71-ad33fee065fd" /></td>
-        <td><img width="1920" height="963" alt="image3" src="https://github.com/user-attachments/assets/0dacfec1-3f24-4413-ae76-8410463d65c0" /></td>
+        <td><img alt="image2" src="https://github.com/user-attachments/assets/c0fa5978-1a22-49a8-ad71-ad33fee065fd" /></td>
+        <td><img alt="image3" src="https://github.com/user-attachments/assets/0dacfec1-3f24-4413-ae76-8410463d65c0" /></td>
     </tr>
 </table>
 
